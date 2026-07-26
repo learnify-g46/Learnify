@@ -1,0 +1,9 @@
+@font-face {
+  font-family: 'EraserNimbusSans';
+  src: url('./NimbusSanL-Reg.woff2');
+}
+
+@font-face {
+  font-family: 'EraserNimbusSansFerrule';
+  src: url('./NimbusSanLFerrule-Reg.woff2');
+}
