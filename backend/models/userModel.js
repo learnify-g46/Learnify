@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["educator", "student"],
+      enum: ["educator", "student", "admin"],
       required: true
     },
     photoUrl: {

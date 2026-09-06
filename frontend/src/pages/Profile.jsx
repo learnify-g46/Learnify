@@ -1,11 +1,29 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { FaArrowLeftLong } from "react-icons/fa6";
+import { FaTrophy, FaMedal } from "react-icons/fa";
+import axios from 'axios'
+import { serverUrl } from '../App'
 
 function Profile() {
   let {userData} = useSelector(state=>state.user)
   let navigate = useNavigate()
+  const [quizStats, setQuizStats] = useState(null)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (userData?.role !== "student") return
+      try {
+        const result = await axios.get(serverUrl + "/api/quiz/my-stats", { withCredentials: true })
+        setQuizStats(result.data)
+      } catch (error) {
+        console.log(error)
+      }
+    }
+    fetchStats()
+  }, [userData])
+
   return (
     <div className="min-h-screen bg-gray-100 px-4 py-10 flex items-center justify-center ">
       
@@ -43,6 +61,28 @@ function Profile() {
             <span>{userData.enrolledCourses.length}</span>
           </div>
         </div>
+
+        {/* Quiz Stats - Motivation Cards */}
+        {quizStats && quizStats.totalQuizzesTaken > 0 && (
+          <div className="mt-6 grid grid-cols-2 gap-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
+              <FaTrophy className="text-yellow-500 text-xl mx-auto mb-1" />
+              <p className="text-xs text-gray-600">Best Rank</p>
+              <p className="font-bold text-gray-900">
+                {quizStats.bestRank ? `#${quizStats.bestRank.rank}` : "—"}
+              </p>
+              {quizStats.bestRank && <p className="text-[11px] text-gray-500 truncate">{quizStats.bestRank.quizTitle}</p>}
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
+              <FaMedal className="text-gray-500 text-xl mx-auto mb-1" />
+              <p className="text-xs text-gray-600">Overall Rank</p>
+              <p className="font-bold text-gray-900">
+                {quizStats.overallRank ? `#${quizStats.overallRank}` : "—"}
+              </p>
+              <p className="text-[11px] text-gray-500">of {quizStats.totalStudentsRanked} students</p>
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="mt-6 flex justify-center gap-4">

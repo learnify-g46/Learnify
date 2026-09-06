@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 
-import { FaEdit } from "react-icons/fa";
+import { FaEdit, FaQuestionCircle } from "react-icons/fa";
 
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -86,8 +86,9 @@ function Courses() {
                       {course?.isPublished ? "Published" : "Draft"}
                     </span>
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-3 px-4 flex items-center gap-3">
                     <FaEdit className="text-gray-600 hover:text-blue-600 cursor-pointer" onClick={() => navigate(`/addcourses/${course?._id}`)} />
+                    <FaQuestionCircle className="text-gray-600 hover:text-purple-600 cursor-pointer" title="Manage Quiz" onClick={() => navigate(`/managequiz/${course?._id}`)} />
                   </td>
                 </tr>
               ))
@@ -120,7 +121,10 @@ function Courses() {
                   <h2 className="font-medium text-sm">{course?.title}</h2>
                   {course?.price ? <p className="text-gray-600 text-xs mt-1">₹{course?.price}</p> : <p className="text-gray-600 text-xs mt-1">₹ NA</p>}
                 </div>
-                <FaEdit className="text-gray-600 hover:text-blue-600 cursor-pointer" onClick={() => navigate(`/addcourses/${course?._id}`)} />
+                <div className="flex flex-col gap-2 items-center">
+                  <FaEdit className="text-gray-600 hover:text-blue-600 cursor-pointer" onClick={() => navigate(`/addcourses/${course?._id}`)} />
+                  <FaQuestionCircle className="text-gray-600 hover:text-purple-600 cursor-pointer" title="Manage Quiz" onClick={() => navigate(`/managequiz/${course?._id}`)} />
+                </div>
               </div>
               <span className={` w-fit px-3 py-1 text-xs rounded-full  ${course?.isPublished ? "text-green-600 bg-green-100" : "text-red-600 bg-red-100"}`}>
                 {course?.isPublished ? "Published" : "Draft"}

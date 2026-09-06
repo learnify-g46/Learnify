@@ -25,6 +25,10 @@ import EnrolledCourse from './pages/EnrolledCourse'
 import ViewLecture from './pages/ViewLecture'
 import SearchWithAi from './pages/SearchWithAi'
 import getAllReviews from './customHooks/getAllReviews'
+import AdminPanel from './pages/admin/AdminPanel'
+import ManageQuiz from './pages/admin/ManageQuiz'
+import TakeQuiz from './pages/TakeQuiz'
+import Leaderboard from './pages/Leaderboard'
 
 export const serverUrl = "https://lms-07j9.onrender.com"
 
@@ -60,6 +64,10 @@ function App() {
         <Route path='/createcourses' element={userData?.role === "educator"?<CreateCourse/>:<Navigate to={"/signup"}/>}/>
         <Route path='/createlecture/:courseId' element={userData?.role === "educator"?<CreateLecture/>:<Navigate to={"/signup"}/>}/>
         <Route path='/editlecture/:courseId/:lectureId' element={userData?.role === "educator"?<EditLecture/>:<Navigate to={"/signup"}/>}/>
+        <Route path='/managequiz/:courseId' element={userData?.role === "educator"?<ManageQuiz/>:<Navigate to={"/signup"}/>}/>
+        <Route path='/admin' element={userData?.role === "admin"?<AdminPanel/>:<Navigate to={"/"}/>}/>
+        <Route path='/takequiz/:courseId' element={userData?<TakeQuiz/>:<Navigate to={"/signup"}/>}/>
+        <Route path='/leaderboard/:quizId' element={userData?<Leaderboard/>:<Navigate to={"/signup"}/>}/>
         <Route path='/forgotpassword' element={<ForgotPassword/>}/>
          </Routes>
 

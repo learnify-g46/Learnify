@@ -7,6 +7,7 @@ import { FaArrowLeftLong } from "react-icons/fa6";
 import img from "../assets/empty.jpg"
 import Card from "../components/Card.jsx"
 import { setSelectedCourseData } from '../redux/courseSlice';
+import { setUserData } from '../redux/userSlice';
 import { FaLock, FaPlayCircle } from "react-icons/fa";
 import { toast } from 'react-toastify';
 import { FaStar } from "react-icons/fa6";
@@ -25,8 +26,10 @@ function ViewCourse() {
     const {selectedCourseData} = useSelector(state=>state.course)
   const [selectedCreatorCourse,setSelectedCreatorCourse] = useState([])
    const [isEnrolled, setIsEnrolled] = useState(false);
+   const [enrolling, setEnrolling] = useState(false);
    const [rating, setRating] = useState(0);
    const [comment, setComment] = useState("");
+   const isFreeCourse = !selectedCourseData?.price || Number(selectedCourseData?.price) === 0;
    
    
   
@@ -129,6 +132,32 @@ console.log("Average Rating:", avgRating);
 }, [creatorData, courseData]);
 
  
+// Enroll in a FREE course directly (no payment) and unlock all lectures immediately
+const handleFreeEnroll = async (courseId) => {
+  try {
+    setEnrolling(true)
+    const result = await axios.post(
+      serverUrl + `/api/course/enroll/${courseId}`,
+      {},
+      { withCredentials: true }
+    )
+    setIsEnrolled(true)
+    // Update redux user data so enrolledCourses reflects immediately across the app
+    dispatch(setUserData({
+      ...userData,
+      enrolledCourses: [...(userData?.enrolledCourses || []), courseId]
+    }))
+    toast.success(result.data.message || "Enrolled successfully")
+    // As requested: free enroll ke turant baad saare lectures dikhne chahiye
+    navigate(`/viewlecture/${courseId}`)
+  } catch (error) {
+    console.error("Free enroll error:", error)
+    toast.error(error.response?.data?.message || "Failed to enroll in course")
+  } finally {
+    setEnrolling(false)
+  }
+}
+
 const handleEnroll = async (courseId, userId) => {
   try {
     // 1. Create Order
@@ -204,8 +233,14 @@ setIsEnrolled(true)
                 ⭐ {avgRating} <span className="text-gray-500">(1,200 reviews)</span>
               </div>
               <div>
-                <span className="text-lg font-semibold text-black">{selectedCourseData?.price}</span>{" "}
-                <span className="line-through text-sm text-gray-400">₹599</span>
+                {isFreeCourse ? (
+                  <span className="text-lg font-semibold text-green-600">Free</span>
+                ) : (
+                  <>
+                    <span className="text-lg font-semibold text-black">₹{selectedCourseData?.price}</span>{" "}
+                    <span className="line-through text-sm text-gray-400">₹599</span>
+                  </>
+                )}
               </div>
             </div>
 
@@ -217,13 +252,31 @@ setIsEnrolled(true)
             </ul>
 
             {/* Enroll Button */}
-            {/* {!isEnrolled ?<button className="bg-[black] text-white px-6 py-2 rounded hover:bg-gray-700 mt-3" onClick={()=>handleEnroll(courseId , userData._id)}>
-              Enroll Now
-            </button> : */}
-            <button className="bg-green-200 text-green-600 px-6 py-2 rounded hover:bg-gray-100 hover:border mt-3" onClick={()=>navigate(`/viewlecture/${courseId}`)}>
-             Watch Now
-            </button>
-            {/* } */}
+            {!isEnrolled ? (
+              isFreeCourse ? (
+                <button
+                  disabled={enrolling}
+                  className="bg-[black] text-white px-6 py-2 rounded hover:bg-gray-700 mt-3 disabled:opacity-60"
+                  onClick={() => handleFreeEnroll(courseId)}
+                >
+                  {enrolling ? "Enrolling..." : "Enroll Free"}
+                </button>
+              ) : (
+                <button
+                  className="bg-[black] text-white px-6 py-2 rounded hover:bg-gray-700 mt-3"
+                  onClick={() => handleEnroll(courseId, userData._id)}
+                >
+                  Enroll Now
+                </button>
+              )
+            ) : (
+              <button
+                className="bg-green-200 text-green-600 px-6 py-2 rounded hover:bg-gray-100 hover:border mt-3"
+                onClick={() => navigate(`/viewlecture/${courseId}`)}
+              >
+                Watch Now
+              </button>
+            )}
           </div>
         </div>
 

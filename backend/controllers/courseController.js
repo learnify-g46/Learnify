@@ -199,6 +199,44 @@ export const removeLecture = async (req,res) => {
 
 
 
+// Enroll in a FREE course directly (no payment required)
+export const enrollFreeCourse = async (req, res) => {
+    try {
+        const { courseId } = req.params
+        const userId = req.userId
+
+        const course = await Course.findById(courseId).populate("lectures")
+        if (!course) {
+            return res.status(404).json({ message: "Course not found" })
+        }
+
+        // Guard: this endpoint is only for free courses. Paid courses must go
+        // through the payment flow (/api/payment/create-order + verify-payment)
+        if (course.price && course.price > 0) {
+            return res.status(400).json({ message: "This course is paid. Please complete payment to enroll." })
+        }
+
+        const user = await User.findById(userId)
+        if (!user) {
+            return res.status(404).json({ message: "User not found" })
+        }
+
+        if (!user.enrolledCourses.includes(courseId)) {
+            user.enrolledCourses.push(courseId)
+            await user.save()
+        }
+
+        if (!course.enrolledStudents.includes(userId)) {
+            course.enrolledStudents.push(userId)
+            await course.save()
+        }
+
+        return res.status(200).json({ message: "Enrolled successfully", course, user })
+    } catch (error) {
+        return res.status(500).json({ message: `Failed to enroll in course ${error}` })
+    }
+}
+
 //get Creator data
 
 
