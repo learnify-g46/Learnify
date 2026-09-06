@@ -10,6 +10,8 @@ import ai from '../assets/ai.png'
 import ai1 from '../assets/SearchAi.png'
 import ReviewPage from '../components/ReviewPage';
 import Footer from '../components/Footer';
+import Recommendations from '../components/Recommendations';
+import ChatBot from '../components/ChatBot';
 import { useNavigate } from 'react-router-dom';
 function Home() {
       const navigate = useNavigate()
@@ -46,8 +48,10 @@ function Home() {
       <ExploreCourses/>
       <Cardspage/>
       <About/>
+      <Recommendations/>
       <ReviewPage/>
       <Footer/>
+      <ChatBot/>
 
       
       

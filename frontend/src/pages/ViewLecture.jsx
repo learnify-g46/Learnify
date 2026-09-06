@@ -1,20 +1,48 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FaPlayCircle } from 'react-icons/fa';
+import { FaLock, FaPlayCircle, FaTrophy } from 'react-icons/fa';
 import { FaArrowLeftLong } from "react-icons/fa6";
+import { toast } from 'react-toastify';
+import ChatBot from '../components/ChatBot';
 
 function ViewLecture() {
   const { courseId } = useParams();
   const { courseData } = useSelector((state) => state.course);
   const {userData} = useSelector((state) => state.user)
   const selectedCourse = courseData?.find((course) => course._id === courseId);
-
-  const [selectedLecture, setSelectedLecture] = useState(
-    selectedCourse?.lectures?.[0] || null
-  );
   const navigate = useNavigate()
   const courseCreator = userData?._id === selectedCourse?.creator ? userData : null;
+
+  // Enrolled users (or the course's own creator) get full access.
+  // Everyone else only gets lectures marked isPreviewFree.
+  const isEnrolled = userData?.enrolledCourses?.some(c => {
+    const enrolledId = typeof c === 'string' ? c : c._id;
+    return enrolledId?.toString() === courseId?.toString();
+  });
+  const hasFullAccess = isEnrolled || !!courseCreator;
+
+  const isLectureLocked = (lecture) => !hasFullAccess && !lecture?.isPreviewFree;
+
+  const firstUnlockedLecture =
+    selectedCourse?.lectures?.find((lec) => !isLectureLocked(lec)) || null;
+
+  const [selectedLecture, setSelectedLecture] = useState(firstUnlockedLecture);
+
+  useEffect(() => {
+    // If course data loads after mount (e.g. on refresh), sync the default lecture
+    if (!selectedLecture && firstUnlockedLecture) {
+      setSelectedLecture(firstUnlockedLecture)
+    }
+  }, [selectedCourse])
+
+  const handleSelectLecture = (lecture) => {
+    if (isLectureLocked(lecture)) {
+      toast.error("Enroll in this course to unlock this lecture")
+      return
+    }
+    setSelectedLecture(lecture)
+  }
 
 
   return (
@@ -31,6 +59,17 @@ function ViewLecture() {
             <span>Category: {selectedCourse?.category}</span>
             <span>Level: {selectedCourse?.level}</span>
           </div>
+          {!hasFullAccess && (
+            <div className="mt-3 bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm rounded-lg px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <span>You're viewing preview lectures only. Enroll to unlock the full course.</span>
+              <button
+                className="bg-black text-white text-xs px-3 py-1.5 rounded whitespace-nowrap w-full sm:w-auto"
+                onClick={() => navigate(`/viewcourse/${courseId}`)}
+              >
+                Go to Enroll
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Video Player */}
@@ -61,27 +100,45 @@ function ViewLecture() {
         <h2 className="text-xl font-bold mb-4 text-gray-800">All Lectures</h2>
         <div className="flex flex-col gap-3 mb-6">
           {selectedCourse?.lectures?.length > 0 ? (
-            selectedCourse.lectures.map((lecture, index) => (
-              <button
-                key={index}
-                onClick={() => setSelectedLecture(lecture)}
-                className={`flex items-center justify-between p-3 rounded-lg border transition text-left ${
-                  selectedLecture?._id === lecture._id
-                    ? 'bg-gray-200 border-gray-500'
-                    : 'hover:bg-gray-50 border-gray-300'
-                }`}
-              >
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-800">{lecture.lectureTitle}</h4>
-                  
-                </div>
-                <FaPlayCircle className="text-black text-xl" />
-              </button>
-            ))
+            selectedCourse.lectures.map((lecture, index) => {
+              const locked = isLectureLocked(lecture)
+              return (
+                <button
+                  key={index}
+                  onClick={() => handleSelectLecture(lecture)}
+                  className={`flex items-center justify-between p-3 rounded-lg border transition text-left ${
+                    locked
+                      ? 'opacity-60 cursor-not-allowed border-gray-200'
+                      : selectedLecture?._id === lecture._id
+                      ? 'bg-gray-200 border-gray-500'
+                      : 'hover:bg-gray-50 border-gray-300'
+                  }`}
+                >
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-800">{lecture.lectureTitle}</h4>
+                    {locked && <span className="text-xs text-gray-500">Enroll to unlock</span>}
+                  </div>
+                  {locked ? (
+                    <FaLock className="text-gray-500 text-lg" />
+                  ) : (
+                    <FaPlayCircle className="text-black text-xl" />
+                  )}
+                </button>
+              )
+            })
           ) : (
             <p className="text-gray-500">No lectures available.</p>
           )}
         </div>
+
+        {hasFullAccess && (
+          <button
+            onClick={() => navigate(`/takequiz/${courseId}`)}
+            className="w-full mb-6 flex items-center justify-center gap-2 bg-black text-white py-3 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
+          >
+            <FaTrophy /> Take Quiz
+          </button>
+        )}
 
         {/* Creator Info */}
         {courseCreator && (
@@ -103,6 +160,7 @@ function ViewLecture() {
   </div>
         )}
       </div>
+      <ChatBot courseTitle={selectedCourse?.title} lectureTitle={selectedLecture?.lectureTitle} />
     </div>
   );
 }
