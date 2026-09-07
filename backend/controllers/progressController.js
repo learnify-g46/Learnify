@@ -1,6 +1,8 @@
 import Progress from "../models/progressModel.js"
 import Course from "../models/courseModel.js"
 import QuizAttempt from "../models/quizAttemptModel.js"
+import User from "../models/userModel.js"
+import { XP_RULES, awardXp, applyStreakActivity, markDailyQuestTask, checkAndAwardBadges, BADGE_META } from "../utils/gamification.js"
 
 // Mark a lecture as completed + update "last watched" pointer
 export const markLectureComplete = async (req, res) => {
@@ -9,6 +11,8 @@ export const markLectureComplete = async (req, res) => {
         const studentId = req.userId
 
         let progress = await Progress.findOne({ student: studentId, course: courseId })
+        let isNewCompletion = false
+
         if (!progress) {
             progress = await Progress.create({
                 student: studentId,
@@ -16,15 +20,55 @@ export const markLectureComplete = async (req, res) => {
                 completedLectures: [lectureId],
                 lastWatchedLecture: lectureId
             })
+            isNewCompletion = true
         } else {
             if (!progress.completedLectures.some(id => id.toString() === lectureId)) {
                 progress.completedLectures.push(lectureId)
+                isNewCompletion = true
             }
             progress.lastWatchedLecture = lectureId
             await progress.save()
         }
 
-        return res.status(200).json(progress)
+        // ---- Gamification side effects (additive). Never blocks the core
+        // response above if something here fails unexpectedly. ----
+        let gamification = null
+        if (isNewCompletion) {
+            try {
+                const user = await User.findById(studentId)
+                if (user) {
+                    awardXp(user, XP_RULES.LESSON)
+                    applyStreakActivity(user)
+                    const dailyQuestJustCompleted = markDailyQuestTask(user, "lessonDone")
+
+                    // Total lessons completed by this student across all their courses
+                    const allProgress = await Progress.find({ student: studentId })
+                    const totalLessonsCompleted = allProgress.reduce((sum, p) => sum + (p.completedLectures?.length || 0), 0)
+
+                    // Did this specific course just reach 100%?
+                    const course = await Course.findById(courseId)
+                    const totalLecturesInCourse = course?.lectures?.length || 0
+                    const courseJustCompleted = totalLecturesInCourse > 0 && progress.completedLectures.length === totalLecturesInCourse
+
+                    const newBadgeKeys = checkAndAwardBadges(user, { totalLessonsCompleted, courseJustCompleted })
+
+                    await user.save()
+
+                    gamification = {
+                        xpEarned: XP_RULES.LESSON + (dailyQuestJustCompleted ? XP_RULES.DAILY_QUEST : 0),
+                        xp: user.xp,
+                        currentStreak: user.currentStreak,
+                        longestStreak: user.longestStreak,
+                        dailyQuestCompleted: dailyQuestJustCompleted,
+                        newBadges: newBadgeKeys.map(key => ({ key, ...BADGE_META[key] }))
+                    }
+                }
+            } catch (gamificationError) {
+                console.log("Gamification update failed (non-blocking):", gamificationError)
+            }
+        }
+
+        return res.status(200).json({ ...progress.toObject(), gamification })
     } catch (error) {
         return res.status(500).json({ message: `Failed to update progress ${error}` })
     }

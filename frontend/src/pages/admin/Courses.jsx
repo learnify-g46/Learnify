@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 
-import { FaEdit, FaQuestionCircle } from "react-icons/fa";
+import { FaEdit, FaQuestionCircle, FaBook } from "react-icons/fa";
 
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -87,7 +87,8 @@ function Courses() {
                     </span>
                   </td>
                   <td className="py-3 px-4 flex items-center gap-3">
-                    <FaEdit className="text-gray-600 hover:text-blue-600 cursor-pointer" onClick={() => navigate(`/addcourses/${course?._id}`)} />
+                    <FaEdit className="text-gray-600 hover:text-blue-600 cursor-pointer" title="Edit Course" onClick={() => navigate(`/addcourses/${course?._id}`)} />
+                    <FaBook className="text-gray-600 hover:text-green-600 cursor-pointer" title="Add / Manage Lectures" onClick={() => navigate(`/createlecture/${course?._id}`)} />
                     <FaQuestionCircle className="text-gray-600 hover:text-purple-600 cursor-pointer" title="Manage Quiz" onClick={() => navigate(`/managequiz/${course?._id}`)} />
                   </td>
                 </tr>
@@ -122,7 +123,8 @@ function Courses() {
                   {course?.price ? <p className="text-gray-600 text-xs mt-1">₹{course?.price}</p> : <p className="text-gray-600 text-xs mt-1">₹ NA</p>}
                 </div>
                 <div className="flex flex-col gap-2 items-center">
-                  <FaEdit className="text-gray-600 hover:text-blue-600 cursor-pointer" onClick={() => navigate(`/addcourses/${course?._id}`)} />
+                  <FaEdit className="text-gray-600 hover:text-blue-600 cursor-pointer" title="Edit Course" onClick={() => navigate(`/addcourses/${course?._id}`)} />
+                  <FaBook className="text-gray-600 hover:text-green-600 cursor-pointer" title="Add / Manage Lectures" onClick={() => navigate(`/createlecture/${course?._id}`)} />
                   <FaQuestionCircle className="text-gray-600 hover:text-purple-600 cursor-pointer" title="Manage Quiz" onClick={() => navigate(`/managequiz/${course?._id}`)} />
                 </div>
               </div>

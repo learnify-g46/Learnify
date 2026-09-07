@@ -14,22 +14,28 @@ function StudentDashboard() {
   const [quizStats, setQuizStats] = useState(null)
   const [recentAttempts, setRecentAttempts] = useState([])
   const [recommendations, setRecommendations] = useState([])
+  const [gamification, setGamification] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchAll = async () => {
       try {
         setLoading(true)
-        const [summaryRes, statsRes, attemptsRes, recRes] = await Promise.all([
+        const [summaryRes, statsRes, attemptsRes, recRes, gamificationRes] = await Promise.all([
           axios.get(serverUrl + "/api/progress/my-summary", { withCredentials: true }),
           axios.get(serverUrl + "/api/quiz/my-stats", { withCredentials: true }),
           axios.get(serverUrl + "/api/quiz/my-attempts", { withCredentials: true }),
           axios.get(serverUrl + "/api/ai/recommendations", { withCredentials: true }),
+          // New gamification widget — isolated with its own catch so that if
+          // this endpoint ever fails, the rest of the (already working)
+          // dashboard still loads exactly as before.
+          axios.get(serverUrl + "/api/gamification/my-progress", { withCredentials: true }).catch(() => null),
         ])
         setSummary(summaryRes.data)
         setQuizStats(statsRes.data)
         setRecentAttempts(attemptsRes.data)
         setRecommendations(recRes.data)
+        if (gamificationRes) setGamification(gamificationRes.data)
       } catch (error) {
         console.log(error)
       } finally {
@@ -75,6 +81,57 @@ function StudentDashboard() {
               </h2>
             </div>
           </div>
+
+          {/* 🎮 My Learning Progress — gamification widget (new, additive) */}
+          {gamification && (
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-5 border border-gray-100 dark:border-gray-800 mb-8">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                🎮 My Learning Progress
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                {/* Level + XP bar */}
+                <div>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Level {gamification.level}
+                    {gamification.xpForNextLevel !== null && (
+                      <span className="text-gray-400 dark:text-gray-500 font-normal"> · {gamification.xpIntoLevel} / {gamification.xpForNextLevel} XP</span>
+                    )}
+                  </p>
+                  <div className="w-full h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-500"
+                      style={{ width: `${gamification.levelPercent}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{gamification.xp} XP total</p>
+                </div>
+
+                {/* Streak + Daily Quest */}
+                <div className="flex flex-col gap-2 justify-center">
+                  <p className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                    <FaFire className="text-orange-500" /> {gamification.currentStreak} Day Streak
+                    <span className="text-xs text-gray-400 dark:text-gray-500">(Longest: {gamification.longestStreak})</span>
+                  </p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    🎯 Today's Quest — {gamification.dailyQuest.tasksCompleted} / {gamification.dailyQuest.totalTasks} completed
+                    {gamification.dailyQuest.claimed && <span className="text-green-600 dark:text-green-400 text-xs ml-1">(+{gamification.dailyQuest.reward} XP claimed)</span>}
+                  </p>
+                </div>
+
+                {/* Badges */}
+                <div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">🏆 My Badges</p>
+                  {gamification.badges.length === 0 ? (
+                    <p className="text-xs text-gray-400 dark:text-gray-500">Complete lessons & quizzes to earn your first badge!</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 text-2xl" title={gamification.badges.map(b => b.label).join(", ")}>
+                      {gamification.badges.map(b => <span key={b.key}>{b.emoji}</span>)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* My Courses with progress */}
           <div className="mb-10">

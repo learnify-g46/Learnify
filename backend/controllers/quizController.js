@@ -2,6 +2,8 @@ import { GoogleGenAI } from "@google/genai"
 import Quiz from "../models/quizModel.js"
 import QuizAttempt from "../models/quizAttemptModel.js"
 import Course from "../models/courseModel.js"
+import User from "../models/userModel.js"
+import { XP_RULES, awardXp, applyStreakActivity, markDailyQuestTask, checkAndAwardBadges, BADGE_META } from "../utils/gamification.js"
 
 // Helper: only the teacher who created the course can manage its quizzes
 const ensureCourseOwner = async (courseId, userId) => {
@@ -177,11 +179,62 @@ export const submitQuizAttempt = async (req, res) => {
             timeTakenSeconds: timeTakenSeconds || 0
         })
 
+        // ---- Gamification side effects (additive). Re-attempts are still
+        // recorded above for the leaderboard as before; XP for a given quiz
+        // (base + perfect bonus) is only ever granted once each. ----
+        let gamification = null
+        try {
+            const user = await User.findById(req.userId)
+            if (user) {
+                let xpEarned = 0
+                const isPerfect = quiz.questions.length > 0 && score === quiz.questions.length
+
+                const alreadyGotBaseXp = user.xpAwardedQuizIds.some(id => id.toString() === quizId)
+                if (!alreadyGotBaseXp) {
+                    awardXp(user, XP_RULES.QUIZ)
+                    xpEarned += XP_RULES.QUIZ
+                    user.xpAwardedQuizIds.push(quizId)
+                }
+
+                const alreadyGotPerfectBonus = user.perfectBonusQuizIds.some(id => id.toString() === quizId)
+                if (isPerfect && !alreadyGotPerfectBonus) {
+                    awardXp(user, XP_RULES.QUIZ_PERFECT_BONUS)
+                    xpEarned += XP_RULES.QUIZ_PERFECT_BONUS
+                    user.perfectBonusQuizIds.push(quizId)
+                }
+
+                applyStreakActivity(user)
+
+                let dailyQuestJustCompleted = markDailyQuestTask(user, "quizDone")
+                if (isPerfect) {
+                    dailyQuestJustCompleted = markDailyQuestTask(user, "bonusDone") || dailyQuestJustCompleted
+                }
+                if (dailyQuestJustCompleted) xpEarned += XP_RULES.DAILY_QUEST
+
+                const perfectQuizCount = user.perfectBonusQuizIds.length
+                const newBadgeKeys = checkAndAwardBadges(user, { perfectQuizCount })
+
+                await user.save()
+
+                gamification = {
+                    xpEarned,
+                    xp: user.xp,
+                    currentStreak: user.currentStreak,
+                    longestStreak: user.longestStreak,
+                    dailyQuestCompleted: dailyQuestJustCompleted,
+                    newBadges: newBadgeKeys.map(key => ({ key, ...BADGE_META[key] }))
+                }
+            }
+        } catch (gamificationError) {
+            console.log("Gamification update failed (non-blocking):", gamificationError)
+        }
+
         return res.status(200).json({
             message: "Quiz submitted successfully",
             score,
             totalQuestions: quiz.questions.length,
-            attempt
+            attempt,
+            gamification
         })
     } catch (error) {
         return res.status(500).json({ message: `Failed to submit quiz ${error}` })

@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import ai from "../assets/ai.png"
 import ai1 from "../assets/SearchAi.png"
 import { RiMicAiFill } from "react-icons/ri";
+import { FaSearch } from "react-icons/fa";
 import axios from 'axios';
 import { serverUrl } from '../App';
 import { useNavigate } from 'react-router-dom';
@@ -10,52 +11,95 @@ import { FaArrowLeftLong } from "react-icons/fa6";
 function SearchWithAi() {
   const [input, setInput] = useState('');
   const [recommendations, setRecommendations] = useState([]);
-  const [listening,setListening] = useState(false)
+  const [listening, setListening] = useState(false)
+  const [searching, setSearching] = useState(false)
   const navigate = useNavigate();
-  const startSound = new Audio(start)
+
+  // Keep one Audio instance and one SpeechRecognition instance for the whole
+  // component lifetime instead of re-creating them on every render — this
+  // was the root cause of the assistant sometimes speaking the same result
+  // twice (a stray earlier recognition instance was still alive/listening).
+  const startSoundRef = useRef(null)
+  const recognitionRef = useRef(null)
+  const isSearchingRef = useRef(false) // guards against double-submitting the same query
+
+  if (!startSoundRef.current) startSoundRef.current = new Audio(start)
+
+  useEffect(() => {
+    const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionApi) {
+      console.log("Speech recognition not supported");
+      return;
+    }
+    const recognition = new SpeechRecognitionApi();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (e) => {
+      const transcript = e.results[0][0].transcript.trim();
+      setInput(transcript);
+      handleRecommendation(transcript);
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+
+    recognitionRef.current = recognition;
+
+    // Stop any in-progress recognition session if the user navigates away
+    return () => {
+      try { recognition.stop(); } catch { /* already stopped */ }
+    };
+  }, []);
+
   function speak(message) {
+    // Cancel any speech that might already be queued/playing so the same
+    // sentence never overlaps or repeats.
+    window.speechSynthesis.cancel();
     let utterance = new SpeechSynthesisUtterance(message);
     window.speechSynthesis.speak(utterance);
   }
 
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const recognition = new SpeechRecognition();
-
-  if (!recognition) {
-    console.log("Speech recognition not supported");
-  }
-
-  const handleSearch = async () => {
-
-    if (!recognition) return;
+  const handleSearch = () => {
+    const recognition = recognitionRef.current;
+    if (!recognition || listening) return; // already listening — ignore extra clicks
     setListening(true)
-    startSound.play()
-    recognition.start();
-    recognition.onresult = async (e) => {
-      const transcript = e.results[0][0].transcript.trim();
-      setInput(transcript);
-      await handleRecommendation(transcript);
-    };
-  
-      
-    
+    startSoundRef.current.currentTime = 0
+    startSoundRef.current.play()
+    try {
+      recognition.start();
+    } catch {
+      // "already started" if a click slips through — safe to ignore
+      setListening(false)
+    }
   };
 
   const handleRecommendation = async (query) => {
+    const trimmed = (query || '').trim()
+    if (!trimmed || isSearchingRef.current) return; // ignore empty query / duplicate in-flight call
+    isSearchingRef.current = true
+    setSearching(true)
     try {
-      const result = await axios.post(`${serverUrl}/api/ai/search`, { input: query }, { withCredentials: true });
+      const result = await axios.post(`${serverUrl}/api/ai/search`, { input: trimmed }, { withCredentials: true });
       setRecommendations(result.data);
-      if(result.data.length>0){
- speak("These are the top courses I found for you")
-      }else{
-         speak("No courses found")
+      if (result.data.length > 0) {
+        speak("These are the top courses I found for you")
+      } else {
+        speak("No courses found")
       }
-     
-      setListening(false)
     } catch (error) {
       console.log(error);
+    } finally {
+      setListening(false)
+      setSearching(false)
+      isSearchingRef.current = false
     }
   };
+
+  const handleTypedSubmit = (e) => {
+    e.preventDefault()
+    handleRecommendation(input)
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black to-gray-900 text-white flex flex-col items-center px-4 py-16">
@@ -68,33 +112,37 @@ function SearchWithAi() {
           Search with <span className='text-[#CB99C7]'>AI</span>
         </h1>
 
-        <div className="flex items-center bg-gray-700 rounded-full overflow-hidden shadow-lg relative w-full ">
-          
+        <form onSubmit={handleTypedSubmit} className="flex items-center bg-gray-700 rounded-full overflow-hidden shadow-lg relative w-full ">
+
           <input
             type="text"
-            className="flex-grow px-4 py-3 bg-transparent text-white placeholder-gray-400 focus:outline-none text-sm sm:text-base"
+            className="flex-grow px-4 py-3 pr-24 sm:pr-28 bg-transparent text-white placeholder-gray-400 focus:outline-none text-sm sm:text-base"
             placeholder="What do you want to learn? (e.g. AI, MERN, Cloud...)"
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
-          
-          
-          {input && (
-            <button
-              onClick={() => handleRecommendation(input)}
-              className="absolute right-14 sm:right-16 bg-white rounded-full"
-            >
-              <img src={ai} className='w-10 h-10 p-2 rounded-full' alt="Search" />
-            </button>
-          )}
 
+          {/* Typed search — submits on Enter (form onSubmit) or on click */}
           <button
-            className="absolute right-2 bg-white rounded-full w-10 h-10 flex items-center justify-center"
-            onClick={handleSearch}
+            type="submit"
+            disabled={!input.trim() || searching}
+            className="absolute right-14 sm:right-16 bg-white rounded-full disabled:opacity-40 w-10 h-10 flex items-center justify-center"
+            title="Search"
           >
-            <RiMicAiFill className="w-5 h-5 text-[#cb87c5]" />
+            <FaSearch className="w-4 h-4 text-[#cb87c5]" />
           </button>
-        </div>
+
+          {/* Voice search */}
+          <button
+            type="button"
+            className="absolute right-2 bg-white rounded-full w-10 h-10 flex items-center justify-center disabled:opacity-40"
+            onClick={handleSearch}
+            disabled={listening}
+            title="Search by voice"
+          >
+            <RiMicAiFill className={`w-5 h-5 text-[#cb87c5] ${listening ? "animate-pulse" : ""}`} />
+          </button>
+        </form>
       </div>
 
       {/* Recommendations */}
@@ -120,8 +168,13 @@ function SearchWithAi() {
           </div>
         </div>
       ) : (
-        listening? <h1 className='text-center text-xl sm:text-2xl mt-10 text-gray-400'>Listening...</h1>:<h1 className='text-center text-xl sm:text-2xl mt-10 text-gray-400'>No Courses Found</h1>
-       
+        listening ? (
+          <h1 className='text-center text-xl sm:text-2xl mt-10 text-gray-400'>Listening...</h1>
+        ) : searching ? (
+          <h1 className='text-center text-xl sm:text-2xl mt-10 text-gray-400'>Searching...</h1>
+        ) : (
+          <h1 className='text-center text-xl sm:text-2xl mt-10 text-gray-400'>No Courses Found</h1>
+        )
       )}
     </div>
   );

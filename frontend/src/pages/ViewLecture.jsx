@@ -98,11 +98,20 @@ function ViewLecture() {
   const handleVideoEnded = async () => {
     if (!userData || !selectedLecture?._id) return
     try {
-      await axios.post(serverUrl + "/api/progress/complete", {
+      const result = await axios.post(serverUrl + "/api/progress/complete", {
         courseId, lectureId: selectedLecture._id
       }, { withCredentials: true })
       setCompletedLectures(prev => prev.includes(selectedLecture._id) ? prev : [...prev, selectedLecture._id])
       toast.success("Lecture marked as completed ✓")
+
+      // Gamification feedback (only present the first time a lecture is completed)
+      const gamification = result.data?.gamification
+      if (gamification) {
+        setTimeout(() => toast.success(`+${gamification.xpEarned} XP 🎉`), 400)
+        gamification.newBadges?.forEach((badge, i) => {
+          setTimeout(() => toast.success(`Badge unlocked: ${badge.emoji} ${badge.label}`), 900 + i * 500)
+        })
+      }
     } catch (error) {
       console.log(error)
     }

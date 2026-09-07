@@ -51,6 +51,15 @@ function TakeQuiz() {
       }, { withCredentials: true })
       setResult(res.data)
       toast.success("Quiz submitted!")
+
+      // Gamification feedback
+      const gamification = res.data?.gamification
+      if (gamification?.xpEarned > 0) {
+        setTimeout(() => toast.success(`+${gamification.xpEarned} XP 🎉`), 400)
+        gamification.newBadges?.forEach((badge, i) => {
+          setTimeout(() => toast.success(`Badge unlocked: ${badge.emoji} ${badge.label}`), 900 + i * 500)
+        })
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to submit quiz")
     } finally {
