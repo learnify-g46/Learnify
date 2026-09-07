@@ -249,6 +249,20 @@ export const getOverallLeaderboard = async (req, res) => {
     }
 }
 
+// A student's own recent quiz attempts (for dashboard)
+export const getMyQuizAttempts = async (req, res) => {
+    try {
+        const attempts = await QuizAttempt.find({ student: req.userId })
+            .populate("quiz", "title")
+            .populate("course", "title")
+            .sort({ createdAt: -1 })
+            .limit(10)
+        return res.status(200).json(attempts)
+    } catch (error) {
+        return res.status(500).json({ message: `Failed to fetch quiz attempts ${error}` })
+    }
+}
+
 // A single student's stats for their own dashboard: best rank + overall rank
 export const getMyQuizStats = async (req, res) => {
     try {

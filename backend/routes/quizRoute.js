@@ -5,6 +5,7 @@ import {
   deleteQuiz,
   editQuiz,
   generateQuizWithAI,
+  getMyQuizAttempts,
   getMyQuizStats,
   getOverallLeaderboard,
   getQuizByCourseForStudent,
@@ -30,5 +31,6 @@ quizRouter.post("/submit/:quizId", isAuth, submitQuizAttempt)
 quizRouter.get("/leaderboard/:quizId", isAuth, getQuizLeaderboard)
 quizRouter.get("/overall-leaderboard", isAuth, getOverallLeaderboard)
 quizRouter.get("/my-stats", isAuth, getMyQuizStats)
+quizRouter.get("/my-attempts", isAuth, getMyQuizAttempts)
 
 export default quizRouter

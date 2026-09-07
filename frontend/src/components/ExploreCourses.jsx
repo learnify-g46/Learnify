@@ -1,5 +1,5 @@
 import React from 'react'
-import { SiViaplay } from "react-icons/si";
+import { HiArrowRight } from "react-icons/hi";
 import { TbDeviceDesktopAnalytics } from "react-icons/tb";
 import { LiaUikit } from "react-icons/lia";
 import { MdAppShortcut } from "react-icons/md";
@@ -9,54 +9,51 @@ import { SiGoogledataproc } from "react-icons/si";
 import { BsClipboardDataFill } from "react-icons/bs";
 import { SiOpenaigym } from "react-icons/si";
 import { useNavigate } from 'react-router-dom';
+
 function ExploreCourses() {
   const navigate = useNavigate()
+
+  const categories = [
+    { icon: <TbDeviceDesktopAnalytics />, label: "Web Development" },
+    { icon: <LiaUikit />, label: "UI UX Designing" },
+    { icon: <MdAppShortcut />, label: "App Development" },
+    { icon: <FaHackerrank />, label: "Ethical Hacking" },
+    { icon: <TbBrandOpenai />, label: "AI/ML" },
+    { icon: <SiGoogledataproc />, label: "Data Science" },
+    { icon: <BsClipboardDataFill />, label: "Data Analytics" },
+    { icon: <SiOpenaigym />, label: "AI Tools" },
+  ]
+
   return (
-    <div className='w-[100vw] min-h-[50vh] lg:h-[50vh] flex flex-col lg:flex-row items-center justify-center gap-4 px-[30px]'>
-        <div className='w-[100%] lg:w-[350px] lg:h-[100%] h-[400px]  flex flex-col items-start justify-center gap-1 md:px-[40px]  px-[20px]'>
-          <span className='text-[35px] font-semibold'>Explore</span>
-          <span className='text-[35px] font-semibold'>Our Courses</span>
-          <p className='text-[17px]'>Lorem ipsum dolor sit amet consectetur adipisicing elit. Rem vel iure explicabo laboriosam accusantium expedita laudantium facere magnam.</p>
-          <button className='px-[20px] py-[10px] border-2 bg-[black] border-white text-white rounded-[10px] text-[18px] font-light flex gap-2 mt-[40px]' onClick={()=>navigate("/allcourses")}>Explore Courses <SiViaplay className='w-[30px] h-[30px] fill-white' /></button>
+    <section className='bg-slate-50 dark:bg-gray-900 py-16'>
+      <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center gap-12'>
 
-        </div>
-        <div className='w-[720px] max-w-[90%] lg:h-[300px] md:min-h-[300px] flex items-center justify-center lg:gap-[60px] gap-[50px] flex-wrap mb-[50px] lg:mb-[0px]'>
-          <div className='w-[100px] h-[130px] font-light text-[13px] flex flex-col gap-3 text-center '>
-            <div className='w-[100px] h-[90px] bg-[#fbd9fb] rounded-lg flex items-center justify-center '><TbDeviceDesktopAnalytics className='w-[60px] h-[60px] text-[#6d6c6c]' /></div>
-            Web Devlopment
-            </div>
-            <div className='w-[100px] h-[130px] font-light text-[13px] flex flex-col gap-3 text-center '>
-            <div className='w-[100px] h-[90px] bg-[#d9fbe0] rounded-lg flex items-center justify-center '><LiaUikit className='w-[60px] h-[60px] text-[#6d6c6c]' /></div>
-            UI UX Designing
-            </div>
-            <div className='w-[100px] h-[130px] font-light text-[13px] flex flex-col gap-3 text-center'>
-            <div className='w-[100px] h-[90px] bg-[#fcb9c8] rounded-lg flex items-center justify-center '><MdAppShortcut className='w-[50px] h-[50px] text-[#6d6c6c]' /></div>
-            App Devlopment
-            </div>
-            <div className='w-[100px] h-[130px] font-light text-[13px] flex flex-col gap-3 text-center'>
-            <div className='w-[100px] h-[90px] bg-[#fbd9fb] rounded-lg flex items-center justify-center '><FaHackerrank className='w-[55px] h-[55px] text-[#6d6c6c]' /></div>
-            Ethical Hacking
-            </div>
-            <div className='w-[100px] h-[130px] font-light text-[13px] flex flex-col gap-3 text-center'>
-            <div className='w-[100px] h-[90px] bg-[#d9fbe0] rounded-lg flex items-center justify-center '><TbBrandOpenai className='w-[55px] h-[55px] text-[#6d6c6c]' /></div>
-            AI/ML
-            </div>
-            <div className='w-[100px] h-[130px] font-light text-[13px] flex flex-col gap-3 text-center'>
-            <div className='w-[100px] h-[90px] bg-[#fcb9c8] rounded-lg flex items-center justify-center '><SiGoogledataproc className='w-[45px] h-[45px] text-[#6d6c6c]' /></div>
-            Data Science
-            </div>
-            <div className='w-[100px] h-[130px] font-light text-[13px] flex flex-col gap-3 text-center '>
-            <div className='w-[100px] h-[90px] bg-[#fbd9fb] rounded-lg flex items-center justify-center '><BsClipboardDataFill className='w-[50px] h-[50px] text-[#6d6c6c]' /></div>
-            Data Analytics
-            </div>
-            <div className='w-[100px] h-[130px] font-light text-[13px] flex flex-col gap-3 text-center'>
-            <div className='w-[100px] h-[90px] bg-[#d9fbe0] rounded-lg flex items-center justify-center '><SiOpenaigym className='w-[50px] h-[50px] text-[#6d6c6c]' /></div>
-            AI Tools
-            </div>
+        <div className='lg:w-1/3 flex flex-col items-start gap-3'>
+          <h2 className='text-3xl md:text-4xl font-bold text-slate-900 dark:text-white'>Explore Our Courses</h2>
+          <p className='text-slate-500 dark:text-gray-400'>
+            Pick a category and dive in — curated learning paths across the most in-demand tech and business skills.
+          </p>
+          <button
+            className='flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 mt-4'
+            onClick={() => navigate("/allcourses")}
+          >
+            Explore Courses <HiArrowRight />
+          </button>
         </div>
 
-      
-    </div>
+        <div className='lg:w-2/3 grid grid-cols-2 sm:grid-cols-4 gap-6 w-full'>
+          {categories.map((cat, idx) => (
+            <div key={idx} className='flex flex-col items-center gap-3 text-center'>
+              <div className='h-20 w-20 rounded-2xl bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 flex items-center justify-center text-3xl text-blue-600 dark:text-blue-400 shadow-sm'>
+                {cat.icon}
+              </div>
+              <span className='text-sm font-medium text-slate-700 dark:text-gray-200'>{cat.label}</span>
+            </div>
+          ))}
+        </div>
+
+      </div>
+    </section>
   )
 }
 

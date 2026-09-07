@@ -67,7 +67,16 @@ export const editCourse = async (req,res) => {
         if(!course){
             return res.status(404).json({message:"Course not found"})
         }
-        const updateData = {title , subTitle , description , category , level , price , isPublished ,thumbnail}
+
+        // Guard against saving an invalid/blank level (this previously caused
+        // enrollment to fail later with a validation error)
+        const validLevels = ['Beginner', 'Intermediate', 'Advanced']
+        if (level && !validLevels.includes(level)) {
+            return res.status(400).json({ message: "Invalid course level. Must be Beginner, Intermediate, or Advanced." })
+        }
+
+        const updateData = {title , subTitle , description , category , price , isPublished ,thumbnail}
+        if (level) updateData.level = level // only overwrite if a valid value was actually sent
 
         course = await Course.findByIdAndUpdate(courseId , updateData , {new:true})
         return res.status(201).json(course)
@@ -158,11 +167,16 @@ export const editLecture = async (req,res) => {
           if(!lecture){
             return res.status(404).json({message:"Lecture not found"})
         }
-        let videoUrl
-        if(req.file){
-            videoUrl =await uploadOnCloudinary(req.file.path)
+        if(req.files?.videoUrl?.[0]){
+            const videoUrl = await uploadOnCloudinary(req.files.videoUrl[0].path)
             lecture.videoUrl = videoUrl
-                }
+        }
+        if(req.files?.resources?.length){
+            for(const file of req.files.resources){
+                const url = await uploadOnCloudinary(file.path)
+                lecture.resources.push({ name: file.originalname, url })
+            }
+        }
         if(lectureTitle){
             lecture.lectureTitle = lectureTitle
         }
@@ -174,6 +188,23 @@ export const editLecture = async (req,res) => {
         return res.status(500).json({message:`Failed to edit Lectures ${error}`})
     }
     
+}
+
+// Remove a single resource file from a lecture (professional LMS-style resource management)
+export const removeLectureResource = async (req,res) => {
+    try {
+        const {lectureId} = req.params
+        const {resourceId} = req.body
+        const lecture = await Lecture.findById(lectureId)
+        if(!lecture){
+            return res.status(404).json({message:"Lecture not found"})
+        }
+        lecture.resources = lecture.resources.filter(r => r._id.toString() !== resourceId)
+        await lecture.save()
+        return res.status(200).json(lecture)
+    } catch (error) {
+        return res.status(500).json({message:`Failed to remove resource ${error}`})
+    }
 }
 
 export const removeLecture = async (req,res) => {
@@ -221,15 +252,11 @@ export const enrollFreeCourse = async (req, res) => {
             return res.status(404).json({ message: "User not found" })
         }
 
-        if (!user.enrolledCourses.includes(courseId)) {
-            user.enrolledCourses.push(courseId)
-            await user.save()
-        }
-
-        if (!course.enrolledStudents.includes(userId)) {
-            course.enrolledStudents.push(userId)
-            await course.save()
-        }
+        // Use findByIdAndUpdate with $addToSet instead of .save() so Mongoose
+        // does NOT re-validate the entire document (e.g. old courses with a
+        // blank "level" field would otherwise fail validation on enroll).
+        await User.findByIdAndUpdate(userId, { $addToSet: { enrolledCourses: courseId } })
+        await Course.findByIdAndUpdate(courseId, { $addToSet: { enrolledStudents: userId } })
 
         return res.status(200).json({ message: "Enrolled successfully", course, user })
     } catch (error) {

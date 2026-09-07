@@ -1,9 +1,8 @@
 import React, { useState } from 'react'
 import logo from '../assets/learnify.jpeg';
 import { IoMdPerson } from "react-icons/io";
-import { GiHamburgerMenu } from "react-icons/gi";
-import { GiSplitCross } from "react-icons/gi";
-import { MdSpaceDashboard } from "react-icons/md";
+import { HiMenu, HiX } from "react-icons/hi";
+import { MdSpaceDashboard, MdDarkMode, MdLightMode } from "react-icons/md";
 import { FaBookOpen, FaCrown } from "react-icons/fa";
 
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -12,6 +11,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useDispatch, useSelector } from 'react-redux';
 import { setUserData } from '../redux/userSlice';
+import { useTheme } from '../context/ThemeContext';
 
 function Nav() {
   let [showHam, setShowHam] = useState(false)
@@ -20,6 +20,7 @@ function Nav() {
   let location = useLocation()
   let dispatch = useDispatch()
   let { userData } = useSelector(state => state.user)
+  const { isDark, toggleTheme } = useTheme()
 
   const navLinks = [
     { label: "Home", path: "/" },
@@ -41,46 +42,64 @@ function Nav() {
   }
 
   return (
-    <div>
-      {/* NAVBAR */}
-      <div className='w-full h-[68px] fixed top-0 left-0 px-4 md:px-8 flex items-center justify-between z-30
-        bg-white/10 backdrop-blur-xl border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.15)]'>
+    <nav className='sticky top-0 z-50 w-full border-b border-slate-200 dark:border-gray-800 bg-white/90 dark:bg-gray-950/90 backdrop-blur-md'>
 
-        {/* LOGO LEFT */}
-        <div className='flex items-center gap-2'>
+      <div className='mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8'>
+
+        {/* Logo */}
+        <div
+          className='flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white cursor-pointer'
+          onClick={() => navigate("/")}
+        >
           <img
             src={logo}
-            className='w-[42px] h-[42px] object-cover rounded-full border-2 border-white shadow-md cursor-pointer'
-            onClick={() => navigate("/")}
+            className='h-9 w-9 rounded-xl object-cover'
             alt="logo"
           />
-          <span className='hidden sm:block text-white font-bold text-xl tracking-wide drop-shadow'>Learnify</span>
+          <span>Learnify</span>
         </div>
 
-        {/* CENTER NAV LINKS */}
-        <div className='hidden lg:flex items-center gap-1 bg-black/20 rounded-full px-2 py-1.5 border border-white/10'>
+        {/* Desktop Navigation */}
+        <div className='hidden items-center gap-8 md:flex'>
           {navLinks.map((link) => (
             <span
               key={link.path}
               onClick={() => navigate(link.path)}
-              className={`px-4 py-1.5 rounded-full text-[15px] cursor-pointer transition-all duration-300
-                ${isActive(link.path)
-                  ? 'bg-white text-black font-semibold shadow'
-                  : 'text-white/90 hover:bg-white/15'}`}
+              className={`text-sm font-medium transition cursor-pointer ${isActive(link.path)
+                  ? 'text-blue-600'
+                  : 'text-slate-600 dark:text-gray-300 hover:text-blue-600'
+                }`}
             >
               {link.label}
             </span>
           ))}
         </div>
 
-        {/* RIGHT SIDE MENU */}
-        <div className='hidden lg:flex items-center gap-4 text-white text-[15px]'>
+        {/* Desktop Right side */}
+        <div className='hidden items-center gap-3 md:flex'>
+
+          {/* Dark mode toggle */}
+          <button
+            onClick={toggleTheme}
+            className='flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-800 transition'
+            title="Toggle dark mode"
+          >
+            {isDark ? <MdLightMode className='text-yellow-400' /> : <MdDarkMode />}
+          </button>
 
           {userData?.role === "educator" &&
             <button
-              className='flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black font-medium
-                hover:bg-gray-200 transition-all duration-300 shadow'
+              className='flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700'
               onClick={() => navigate("/dashboard")}
+            >
+              <MdSpaceDashboard /> Dashboard
+            </button>
+          }
+
+          {userData?.role === "student" &&
+            <button
+              className='flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700'
+              onClick={() => navigate("/student-dashboard")}
             >
               <MdSpaceDashboard /> Dashboard
             </button>
@@ -88,8 +107,7 @@ function Nav() {
 
           {userData?.role === "admin" &&
             <button
-              className='flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-400 text-black font-medium
-                hover:bg-yellow-300 transition-all duration-300 shadow'
+              className='flex items-center gap-2 rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-amber-300'
               onClick={() => navigate("/admin")}
             >
               <FaCrown /> Admin
@@ -97,118 +115,158 @@ function Nav() {
           }
 
           {!userData &&
-            <span
-              className='px-5 py-2 rounded-full border border-white/40 text-white cursor-pointer
-                hover:bg-white/15 transition-all duration-300'
-              onClick={() => navigate("/login")}
-            >
-              Login
-            </span>
+            <>
+              <span
+                className='text-sm font-semibold text-slate-700 dark:text-gray-300 hover:text-blue-600 cursor-pointer'
+                onClick={() => navigate("/login")}
+              >
+                Login
+              </span>
+              <span
+                className='rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 cursor-pointer'
+                onClick={() => navigate("/signup")}
+              >
+                Sign Up
+              </span>
+            </>
           }
 
           {/* PROFILE ICON */}
-          <div className='relative'>
-            {!userData ?
-              <IoMdPerson
-                className='w-[44px] h-[44px] fill-white cursor-pointer border-2 border-white/50 bg-black/30 rounded-full p-[9px] hover:bg-black/50 transition-all'
-                onClick={() => setShowPro(prev => !prev)}
-              /> :
+          {userData &&
+            <div className='relative'>
               <div
-                className='w-[44px] h-[44px] rounded-full text-white flex items-center justify-center text-[18px]
-                  border-2 border-white/70 bg-gradient-to-br from-gray-700 to-black cursor-pointer shadow-md hover:scale-105 transition-transform'
+                className='flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 dark:bg-gray-800 text-sm font-bold text-blue-600 dark:text-blue-400 cursor-pointer overflow-hidden border border-slate-200 dark:border-gray-700'
                 onClick={() => setShowPro(prev => !prev)}
               >
                 {userData.photoUrl
-                  ? <img src={userData.photoUrl} className='w-full h-full rounded-full object-cover' alt="" />
+                  ? <img src={userData.photoUrl} className='h-full w-full object-cover' alt="" />
                   : userData?.name?.slice(0, 1).toUpperCase()}
               </div>
-            }
 
-            {showPro && (
-              <div className='absolute top-[130%] right-0 flex flex-col gap-1 text-[15px] rounded-xl
-                bg-white/95 backdrop-blur-md px-2 py-2 border border-gray-200 shadow-2xl min-w-[170px] animate-[fadeIn_0.15s_ease-out]'>
-                {userData &&
-                  <>
-                    <span className='flex items-center gap-2 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors'
-                      onClick={() => { navigate("/profile"); setShowPro(false) }}>
-                      <IoMdPerson /> My Profile
-                    </span>
-                    <span className='flex items-center gap-2 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors'
-                      onClick={() => { navigate("/enrolledcourses"); setShowPro(false) }}>
-                      <FaBookOpen /> My Courses
-                    </span>
-                    <div className='h-[1px] bg-gray-200 my-1' />
-                    <span className='text-white bg-black px-3 py-2 rounded-lg hover:bg-gray-800 cursor-pointer text-center transition-colors'
-                      onClick={handleLogout}>
-                      Logout
-                    </span>
-                  </>
-                }
-              </div>
-            )}
-          </div>
+              {showPro && (
+                <div className='absolute right-0 top-[130%] flex min-w-[180px] flex-col gap-1 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm shadow-xl'>
+                  <span
+                    className='flex items-center gap-2 rounded-lg px-3 py-2 text-slate-700 dark:text-gray-200 transition hover:bg-slate-100 dark:hover:bg-gray-800 cursor-pointer'
+                    onClick={() => { navigate("/profile"); setShowPro(false) }}>
+                    <IoMdPerson /> My Profile
+                  </span>
+                  <span
+                    className='flex items-center gap-2 rounded-lg px-3 py-2 text-slate-700 dark:text-gray-200 transition hover:bg-slate-100 dark:hover:bg-gray-800 cursor-pointer'
+                    onClick={() => { navigate("/enrolledcourses"); setShowPro(false) }}>
+                    <FaBookOpen /> My Courses
+                  </span>
+                  <hr className='my-1 border-slate-200 dark:border-gray-700' />
+                  <span
+                    className='rounded-lg bg-slate-900 dark:bg-blue-600 px-3 py-2 text-center font-semibold text-white transition hover:bg-slate-800 dark:hover:bg-blue-700 cursor-pointer'
+                    onClick={handleLogout}>
+                    Logout
+                  </span>
+                </div>
+              )}
+            </div>
+          }
         </div>
 
-        {/* MOBILE HAMBURGER */}
-        <GiHamburgerMenu className='w-[26px] h-[26px] lg:hidden fill-white cursor-pointer' onClick={() => setShowHam(prev => !prev)} />
+        {/* MOBILE MENU BUTTON */}
+        <button
+          onClick={() => setShowHam(prev => !prev)}
+          className='rounded-lg p-2 text-slate-700 dark:text-gray-200 md:hidden'
+        >
+          {showHam ? <HiX size={24} /> : <HiMenu size={24} />}
+        </button>
       </div>
 
       {/* MOBILE MENU */}
-      <div className={`fixed top-0 w-screen h-screen bg-black/90 backdrop-blur-md flex items-center justify-center flex-col gap-4 z-40
-        transition-transform duration-500 ease-in-out ${showHam ? "translate-x-0" : "translate-x-[-100%]"}`}>
-        <GiSplitCross className='w-[32px] h-[32px] fill-white absolute top-6 right-6 cursor-pointer' onClick={() => setShowHam(prev => !prev)} />
+      {showHam && (
+        <div className='border-t border-slate-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-4 md:hidden'>
+          <div className='flex flex-col gap-4'>
 
-        <div className='w-[64px] h-[64px] rounded-full text-white flex items-center justify-center text-[24px] border-2 bg-gradient-to-br from-gray-700 to-black border-white mb-2'>
-          {userData?.photoUrl
-            ? <img src={userData.photoUrl} className='w-full h-full rounded-full object-cover' alt="" />
-            : (userData ? userData.name.slice(0, 1).toUpperCase() : <IoMdPerson className='w-8 h-8' />)}
+            {navLinks.map(link => (
+              <span
+                key={link.path}
+                className={`text-sm font-medium cursor-pointer ${isActive(link.path) ? 'text-blue-600' : 'text-slate-600 dark:text-gray-300'}`}
+                onClick={() => { navigate(link.path); setShowHam(false) }}>
+                {link.label}
+              </span>
+            ))}
+
+            <button
+              onClick={toggleTheme}
+              className='flex w-fit items-center gap-2 rounded-lg border border-slate-200 dark:border-gray-700 px-3 py-2 text-sm text-slate-600 dark:text-gray-300'
+            >
+              {isDark ? <MdLightMode className='text-yellow-400' /> : <MdDarkMode />}
+              {isDark ? "Light Mode" : "Dark Mode"}
+            </button>
+
+            <hr className='border-slate-200 dark:border-gray-800' />
+
+            {userData &&
+              <span
+                className='flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-gray-200 cursor-pointer'
+                onClick={() => { navigate("/profile"); setShowHam(false) }}>
+                <IoMdPerson /> My Profile
+              </span>
+            }
+
+            {userData &&
+              <span
+                className='flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-gray-200 cursor-pointer'
+                onClick={() => { navigate("/enrolledcourses"); setShowHam(false) }}>
+                <FaBookOpen /> My Courses
+              </span>
+            }
+
+            {userData?.role === "educator" &&
+              <span
+                className='flex items-center gap-2 text-sm font-semibold text-blue-600 cursor-pointer'
+                onClick={() => { navigate("/dashboard"); setShowHam(false) }}>
+                <MdSpaceDashboard /> Dashboard
+              </span>
+            }
+
+            {userData?.role === "student" &&
+              <span
+                className='flex items-center gap-2 text-sm font-semibold text-blue-600 cursor-pointer'
+                onClick={() => { navigate("/student-dashboard"); setShowHam(false) }}>
+                <MdSpaceDashboard /> Dashboard
+              </span>
+            }
+
+            {userData?.role === "admin" &&
+              <span
+                className='flex items-center gap-2 text-sm font-semibold text-amber-600 cursor-pointer'
+                onClick={() => { navigate("/admin"); setShowHam(false) }}>
+                <FaCrown /> Admin Panel
+              </span>
+            }
+
+            {!userData
+              ? (
+                <div className='flex flex-col gap-3'>
+                  <span
+                    className='text-sm font-semibold text-slate-700 dark:text-gray-200 cursor-pointer'
+                    onClick={() => { navigate("/login"); setShowHam(false) }}>
+                    Login
+                  </span>
+                  <span
+                    className='rounded-lg bg-blue-600 px-4 py-2 text-center text-sm font-semibold text-white cursor-pointer'
+                    onClick={() => { navigate("/signup"); setShowHam(false) }}>
+                    Sign Up
+                  </span>
+                </div>
+              )
+              : (
+                <span
+                  className='rounded-lg bg-red-50 dark:bg-red-950/40 px-4 py-2 text-center text-sm font-semibold text-red-500 cursor-pointer'
+                  onClick={handleLogout}>
+                  Logout
+                </span>
+              )
+            }
+          </div>
         </div>
-
-        {navLinks.map(link => (
-          <span key={link.path}
-            className='w-[85%] max-w-[320px] text-center text-white border border-white/20 bg-white/10 rounded-xl py-4 text-[17px] cursor-pointer hover:bg-white/20 transition-colors'
-            onClick={() => { navigate(link.path); setShowHam(false) }}>
-            {link.label}
-          </span>
-        ))}
-
-        {userData &&
-          <span className='w-[85%] max-w-[320px] text-center text-white border border-white/20 bg-white/10 rounded-xl py-4 text-[17px] cursor-pointer hover:bg-white/20 transition-colors'
-            onClick={() => { navigate("/profile"); setShowHam(false) }}>
-            My Profile
-          </span>
-        }
-        {userData &&
-          <span className='w-[85%] max-w-[320px] text-center text-white border border-white/20 bg-white/10 rounded-xl py-4 text-[17px] cursor-pointer hover:bg-white/20 transition-colors'
-            onClick={() => { navigate("/enrolledcourses"); setShowHam(false) }}>
-            My Courses
-          </span>
-        }
-        {userData?.role === "educator" &&
-          <span className='w-[85%] max-w-[320px] text-center text-white border border-white/20 bg-white/10 rounded-xl py-4 text-[17px] cursor-pointer hover:bg-white/20 transition-colors'
-            onClick={() => { navigate("/dashboard"); setShowHam(false) }}>
-            Dashboard
-          </span>
-        }
-        {userData?.role === "admin" &&
-          <span className='w-[85%] max-w-[320px] text-center text-black border border-yellow-300 bg-yellow-400 rounded-xl py-4 text-[17px] cursor-pointer hover:bg-yellow-300 transition-colors font-medium'
-            onClick={() => { navigate("/admin"); setShowHam(false) }}>
-            Admin Panel
-          </span>
-        }
-
-        {!userData
-          ? <span className='w-[85%] max-w-[320px] text-center text-black bg-white rounded-xl py-4 text-[17px] cursor-pointer font-medium'
-              onClick={() => { navigate("/login"); setShowHam(false) }}>
-              Login
-            </span>
-          : <span className='w-[85%] max-w-[320px] text-center text-white bg-red-500/80 rounded-xl py-4 text-[17px] cursor-pointer hover:bg-red-500 transition-colors'
-              onClick={handleLogout}>
-              Logout
-            </span>
-        }
-      </div>
-    </div>
+      )}
+    </nav>
   )
 }
 

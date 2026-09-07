@@ -29,8 +29,11 @@ import AdminPanel from './pages/admin/AdminPanel'
 import ManageQuiz from './pages/admin/ManageQuiz'
 import TakeQuiz from './pages/TakeQuiz'
 import Leaderboard from './pages/Leaderboard'
+import ChatBot from './components/ChatBot'
+import StudentDashboard from './pages/StudentDashboard'
+import Certificate from './pages/Certificate'
 
-export const serverUrl = "https://lms-07j9.onrender.com"
+export const serverUrl = "http://localhost:8000"
 
 function App() {
   
@@ -50,8 +53,8 @@ function App() {
         <Route path='/login' element={<Login/>}/>
         <Route path='/signup' element={!userData?<SignUp/>:<Navigate to={"/"}/>}/>
         <Route path='/profile' element={userData?<Profile/>:<Navigate to={"/signup"}/>}/>
-        <Route path='/allcourses' element={userData?<AllCouses/>:<Navigate to={"/signup"}/>}/>
-        <Route path='/viewcourse/:courseId' element={userData?<ViewCourse/>:<Navigate to={"/signup"}/>}/>
+        <Route path='/allcourses' element={<AllCouses/>}/>
+        <Route path='/viewcourse/:courseId' element={<ViewCourse/>}/>
         <Route path='/editprofile' element={userData?<EditProfile/>:<Navigate to={"/signup"}/>}/>
         <Route path='/enrolledcourses' element={userData?<EnrolledCourse/>:<Navigate to={"/signup"}/>}/>
          <Route path='/viewlecture/:courseId' element={userData?<ViewLecture/>:<Navigate to={"/signup"}/>}/>
@@ -68,9 +71,12 @@ function App() {
         <Route path='/admin' element={userData?.role === "admin"?<AdminPanel/>:<Navigate to={"/"}/>}/>
         <Route path='/takequiz/:courseId' element={userData?<TakeQuiz/>:<Navigate to={"/signup"}/>}/>
         <Route path='/leaderboard/:quizId' element={userData?<Leaderboard/>:<Navigate to={"/signup"}/>}/>
+        <Route path='/overall-leaderboard' element={userData?<Leaderboard overall={true}/>:<Navigate to={"/signup"}/>}/>
+        <Route path='/student-dashboard' element={userData?.role === "student"?<StudentDashboard/>:<Navigate to={"/signup"}/>}/>
+        <Route path='/certificate/:courseId' element={userData?<Certificate/>:<Navigate to={"/signup"}/>}/>
         <Route path='/forgotpassword' element={<ForgotPassword/>}/>
          </Routes>
-
+         <ChatBot/>
          </>
    
   )

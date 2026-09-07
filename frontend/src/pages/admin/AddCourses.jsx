@@ -69,6 +69,10 @@ function AddCourses() {
 
 
 const editCourseHandler = async () => {
+  if (!level) {
+    toast.error("Please select a course level before saving")
+    return
+  }
   setLoading(true);
   const formData = new FormData();
   formData.append("title", title);
@@ -196,8 +200,8 @@ const editCourseHandler = async () => {
             {/* Level */}
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">Course Level</label>
-              <select className="w-full border px-4 py-2 rounded-md bg-white" onChange={(e)=>setLevel(e.target.value)} value={level} >
-                <option value="">Select Level</option>
+              <select required className="w-full border px-4 py-2 rounded-md bg-white" onChange={(e)=>setLevel(e.target.value)} value={level} >
+                <option value="" disabled>Select Level</option>
                 <option value="Beginner">Beginner</option>
                 <option value="Intermediate">Intermediate</option>
                 <option value="Advanced">Advanced</option>

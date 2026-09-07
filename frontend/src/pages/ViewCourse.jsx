@@ -134,6 +134,11 @@ console.log("Average Rating:", avgRating);
  
 // Enroll in a FREE course directly (no payment) and unlock all lectures immediately
 const handleFreeEnroll = async (courseId) => {
+  if (!userData) {
+    toast.info("Please login to enroll in this course")
+    navigate("/login")
+    return
+  }
   try {
     setEnrolling(true)
     const result = await axios.post(
@@ -159,6 +164,11 @@ const handleFreeEnroll = async (courseId) => {
 }
 
 const handleEnroll = async (courseId, userId) => {
+  if (!userData) {
+    toast.info("Please login to enroll in this course")
+    navigate("/login")
+    return
+  }
   try {
     // 1. Create Order
     const orderData = await axios.post(serverUrl + "/api/payment/create-order", {
@@ -202,8 +212,8 @@ setIsEnrolled(true)
 };
 
   return (
-     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto bg-white shadow-md rounded-xl p-6 space-y-6 relative">
+     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 sm:p-6 pt-[90px] transition-colors">
+      <div className="max-w-6xl mx-auto bg-white dark:bg-gray-900 shadow-md rounded-xl p-4 sm:p-6 space-y-6 relative text-gray-800 dark:text-gray-100 transition-colors">
 
         {/* Top Section */}
         <div className="flex flex-col md:flex-row gap-6 ">
