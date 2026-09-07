@@ -11,6 +11,7 @@ import aiRouter from "./routes/aiRoute.js"
 import reviewRouter from "./routes/reviewRoute.js"
 import adminRouter from "./routes/adminRoute.js"
 import quizRouter from "./routes/quizRoute.js"
+import progressRouter from "./routes/progressRoute.js"
 dotenv.config()
 
 let port = process.env.PORT
@@ -18,7 +19,7 @@ let app = express()
 app.use(express.json())
 app.use(cookieParser())
 app.use(cors({
-    origin:"https://lms-1-dymy.onrender.com",
+    origin:"http://localhost:5173",
     credentials:true
 }))
 app.use("/api/auth", authRouter)
@@ -29,6 +30,7 @@ app.use("/api/ai", aiRouter)
 app.use("/api/review", reviewRouter)
 app.use("/api/admin", adminRouter)
 app.use("/api/quiz", quizRouter)
+app.use("/api/progress", progressRouter)
 
 
 app.get("/" , (req,res)=>{

@@ -4,30 +4,29 @@ import { SiOpenaccess } from "react-icons/si";
 import { FaSackDollar } from "react-icons/fa6";
 import { BiSupport } from "react-icons/bi";
 import { FaUsers } from "react-icons/fa";
+
 function Logos() {
+  const items = [
+    { icon: <MdCastForEducation className='text-xl' />, label: "Online Courses" },
+    { icon: <SiOpenaccess className='text-xl' />, label: "Lifetime Access" },
+    { icon: <FaSackDollar className='text-xl' />, label: "Value For Money" },
+    { icon: <BiSupport className='text-xl' />, label: "Lifetime Support" },
+    { icon: <FaUsers className='text-xl' />, label: "AI Chat Upcoming" },
+  ]
+
   return (
-    <div className='w-[100vw] min-h-[90px]  pt-[50px] flex items-center justify-center flex-wrap gap-4 md:mb-[50px] '>
-        <div className='flex items-center justify-center gap-2  px-5 py-3   rounded-3xl bg-gray-200 cursor-pointer'>
-            <MdCastForEducation className='w-[35px] h-[35px] fill-[#03394b]' />
-            <span className='text-[#03394b]'>Online Courses</span>
-        </div>
-        <div className='flex items-center justify-center gap-2  px-5 py-3   rounded-3xl bg-gray-200 cursor-pointer'>
-            <SiOpenaccess className='w-[30px] h-[30px] fill-[#03394b]' />
-            <span className='text-[#03394b]'>Lifetime Access</span>
-        </div>
-        <div className='flex items-center justify-center gap-2  px-5 py-3   rounded-3xl bg-gray-200 cursor-pointer'>
-            <FaSackDollar className='w-[30px] h-[30px] fill-[#03394b]' />
-            <span className='text-[#03394b]'>Value For Money</span>
-        </div>
-        <div className='flex items-center justify-center gap-2  px-5 py-3  rounded-3xl bg-gray-200 cursor-pointer'>
-            <BiSupport className='w-[35px] h-[35px] fill-[#03394b]' />
-            <span className='text-[#03394b]'>Lifetime Support</span>
-        </div>
-        <div className='flex items-center justify-center gap-2  px-5 py-3   rounded-3xl bg-gray-200 cursor-pointer'>
-            <FaUsers className='w-[35px] h-[35px] fill-[#03394b]' />
-            <span className='text-[#03394b]'>AI Chat Upcoming</span>
-        </div>
-      
+    <div className='w-full bg-slate-50 dark:bg-gray-900 border-y border-slate-200 dark:border-gray-800 py-6'>
+      <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-center gap-3'>
+        {items.map((item, idx) => (
+          <div
+            key={idx}
+            className='flex items-center gap-2 rounded-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-gray-200 shadow-sm'
+          >
+            <span className='text-blue-600 dark:text-blue-400'>{item.icon}</span>
+            {item.label}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
