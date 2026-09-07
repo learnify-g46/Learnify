@@ -12,6 +12,7 @@ import reviewRouter from "./routes/reviewRoute.js"
 import adminRouter from "./routes/adminRoute.js"
 import quizRouter from "./routes/quizRoute.js"
 import progressRouter from "./routes/progressRoute.js"
+import gamificationRouter from "./routes/gamificationRoute.js"
 dotenv.config()
 
 let port = process.env.PORT
@@ -34,6 +35,7 @@ app.use("/api/review", reviewRouter)
 app.use("/api/admin", adminRouter)
 app.use("/api/quiz", quizRouter)
 app.use("/api/progress", progressRouter)
+app.use("/api/gamification", gamificationRouter)
 
 
 app.get("/" , (req,res)=>{
