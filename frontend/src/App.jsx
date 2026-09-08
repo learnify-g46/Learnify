@@ -33,7 +33,7 @@ import ChatBot from './components/ChatBot'
 import StudentDashboard from './pages/StudentDashboard'
 import Certificate from './pages/Certificate'
 
-export const serverUrl = "https://lms-07j9.onrender.com"
+export const serverUrl ="https://lms-07j9.onrender.com";
 
 function App() {
   

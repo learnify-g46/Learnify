@@ -86,10 +86,27 @@ function Courses() {
                       {course?.isPublished ? "Published" : "Draft"}
                     </span>
                   </td>
-                  <td className="py-3 px-4 flex items-center gap-3">
-                    <FaEdit className="text-gray-600 hover:text-blue-600 cursor-pointer" title="Edit Course" onClick={() => navigate(`/addcourses/${course?._id}`)} />
-                    <FaBook className="text-gray-600 hover:text-green-600 cursor-pointer" title="Add / Manage Lectures" onClick={() => navigate(`/createlecture/${course?._id}`)} />
-                    <FaQuestionCircle className="text-gray-600 hover:text-purple-600 cursor-pointer" title="Manage Quiz" onClick={() => navigate(`/managequiz/${course?._id}`)} />
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100"
+                        onClick={() => navigate(`/addcourses/${course?._id}`)}
+                      >
+                        <FaEdit /> Edit Details
+                      </button>
+                      <button
+                        className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md bg-green-50 text-green-700 hover:bg-green-100"
+                        onClick={() => navigate(`/createlecture/${course?._id}`)}
+                      >
+                        <FaBook /> Lectures ({course?.lectures?.length || 0})
+                      </button>
+                      <button
+                        className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md bg-purple-50 text-purple-700 hover:bg-purple-100"
+                        onClick={() => navigate(`/managequiz/${course?._id}`)}
+                      >
+                        <FaQuestionCircle /> Quiz
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -122,11 +139,26 @@ function Courses() {
                   <h2 className="font-medium text-sm">{course?.title}</h2>
                   {course?.price ? <p className="text-gray-600 text-xs mt-1">₹{course?.price}</p> : <p className="text-gray-600 text-xs mt-1">₹ NA</p>}
                 </div>
-                <div className="flex flex-col gap-2 items-center">
-                  <FaEdit className="text-gray-600 hover:text-blue-600 cursor-pointer" title="Edit Course" onClick={() => navigate(`/addcourses/${course?._id}`)} />
-                  <FaBook className="text-gray-600 hover:text-green-600 cursor-pointer" title="Add / Manage Lectures" onClick={() => navigate(`/createlecture/${course?._id}`)} />
-                  <FaQuestionCircle className="text-gray-600 hover:text-purple-600 cursor-pointer" title="Manage Quiz" onClick={() => navigate(`/managequiz/${course?._id}`)} />
-                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  onClick={() => navigate(`/addcourses/${course?._id}`)}
+                >
+                  <FaEdit /> Edit Details
+                </button>
+                <button
+                  className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md bg-green-50 text-green-700 hover:bg-green-100"
+                  onClick={() => navigate(`/createlecture/${course?._id}`)}
+                >
+                  <FaBook /> Lectures ({course?.lectures?.length || 0})
+                </button>
+                <button
+                  className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md bg-purple-50 text-purple-700 hover:bg-purple-100"
+                  onClick={() => navigate(`/managequiz/${course?._id}`)}
+                >
+                  <FaQuestionCircle /> Quiz
+                </button>
               </div>
               <span className={` w-fit px-3 py-1 text-xs rounded-full  ${course?.isPublished ? "text-green-600 bg-green-100" : "text-red-600 bg-red-100"}`}>
                 {course?.isPublished ? "Published" : "Draft"}
