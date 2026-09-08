@@ -61,8 +61,15 @@ export const editCourse = async (req,res) => {
         const {title , subTitle , description , category , level , price , isPublished } = req.body;
         let thumbnail
          if(req.file){
-            thumbnail =await uploadOnCloudinary(req.file.path)
-                }
+            thumbnail = await uploadOnCloudinary(req.file.path)
+            if (!thumbnail) {
+                // Cloudinary upload failed (bad/expired credentials, network
+                // issue, unsupported file, etc.) — this used to fail silently
+                // and still report "Course Updated" even though the photo
+                // never actually saved. Now we tell the teacher clearly.
+                return res.status(500).json({ message: "Failed to upload the thumbnail image. Please check the file and try again." })
+            }
+        }
         let course = await Course.findById(courseId)
         if(!course){
             return res.status(404).json({message:"Course not found"})

@@ -4,16 +4,18 @@ import { FaArrowLeftLong } from "react-icons/fa6";
 import { useNavigate, useParams } from 'react-router-dom';
 import { serverUrl } from '../../App';
 import { MdEdit } from "react-icons/md";
+import { FaBook, FaCheckCircle, FaExclamationCircle } from "react-icons/fa";
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useDispatch, useSelector } from 'react-redux';
 import { ClipLoader } from 'react-spinners';
 import { setCourseData } from '../../redux/courseSlice';
+
 function AddCourses() {
     const navigate= useNavigate()
     const {courseId} = useParams()
-   
-    
+
+
     const [selectedCourse,setSelectedCourse] = useState(null)
     const [title,setTitle] = useState("")
     const [subTitle,setSubTitle] = useState("")
@@ -26,10 +28,11 @@ function AddCourses() {
    const [frontendImage,setFrontendImage] = useState(null)
    const [backendImage,setBackendImage] = useState(null)
    let [loading,setLoading] = useState(false)
+   const [publishing, setPublishing] = useState(false) // separate spinner so Save and Publish never fight over one flag
    const dispatch = useDispatch()
    const {courseData} = useSelector(state=>state.course)
 
-
+   const lectureCount = selectedCourse?.lectures?.length || 0
 
     const getCourseById = async () => {
       try {
@@ -67,6 +70,20 @@ function AddCourses() {
     setFrontendImage(URL.createObjectURL(file))
   }
 
+  // Keeps the Redux course list (used by the /courses page) in sync after any
+  // save/publish — shared by both actions so the behavior stays identical.
+  const syncCourseDataInRedux = (updatedCourse) => {
+    if (updatedCourse.isPublished) {
+      const updatedCourses = courseData.map(c => c._id === courseId ? updatedCourse : c)
+      if (!courseData.some(c => c._id === courseId)) {
+        updatedCourses.push(updatedCourse)
+      }
+      dispatch(setCourseData(updatedCourses))
+    } else {
+      const filteredCourses = courseData.filter(c => c._id !== courseId)
+      dispatch(setCourseData(filteredCourses))
+    }
+  }
 
 const editCourseHandler = async () => {
   if (!level) {
@@ -81,7 +98,7 @@ const editCourseHandler = async () => {
   formData.append("category", category);
   formData.append("level", level);
   formData.append("price", price);
-  formData.append("thumbnail", backendImage);
+  if (backendImage) formData.append("thumbnail", backendImage); // only send if a new file was actually picked
   formData.append("isPublished", isPublished);
 
   try {
@@ -91,19 +108,8 @@ const editCourseHandler = async () => {
       { withCredentials: true }
     );
 
-    const updatedCourse = result.data;
-    if (updatedCourse.isPublished) {
-      const updatedCourses = courseData.map(c =>
-        c._id === courseId ? updatedCourse : c
-      );
-      if (!courseData.some(c => c._id === courseId)) {
-        updatedCourses.push(updatedCourse);
-      }
-      dispatch(setCourseData(updatedCourses));
-    } else {
-      const filteredCourses = courseData.filter(c => c._id !== courseId);
-      dispatch(setCourseData(filteredCourses));
-    }
+    setSelectedCourse(result.data)
+    syncCourseDataInRedux(result.data);
 
     navigate("/courses");
     toast.success("Course Updated");
@@ -114,6 +120,56 @@ const editCourseHandler = async () => {
     setLoading(false);
   }
 };
+
+  // Publish/Unpublish used to only flip a LOCAL checkbox-like state — the
+  // change was lost the moment the teacher hit the Back arrow instead of the
+  // separate "Save" button, so the course silently never actually published.
+  // This now saves to the backend immediately, with the same validation a
+  // real LMS enforces before making a course live.
+  const handlePublishToggle = async () => {
+    const nextPublishState = !isPublished
+
+    if (nextPublishState) {
+      if (!level) {
+        toast.error("Please select a course level before publishing")
+        return
+      }
+      if (lectureCount === 0) {
+        toast.error("Add at least 1 lecture before publishing this course")
+        return
+      }
+    }
+
+    setPublishing(true)
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("subTitle", subTitle);
+    formData.append("description", description);
+    formData.append("category", category);
+    formData.append("level", level);
+    formData.append("price", price);
+    if (backendImage) formData.append("thumbnail", backendImage);
+    formData.append("isPublished", nextPublishState);
+
+    try {
+      const result = await axios.post(
+        `${serverUrl}/api/course/editcourse/${courseId}`,
+        formData,
+        { withCredentials: true }
+      );
+      setSelectedCourse(result.data)
+      setIsPublished(result.data.isPublished)
+      syncCourseDataInRedux(result.data)
+      toast.success(result.data.isPublished
+        ? "Course Published! Students can now find and enroll in it. 🎉"
+        : "Course Unpublished — hidden from students for now.")
+    } catch (error) {
+      console.log(error)
+      toast.error(error.response?.data?.message || "Failed to update publish status")
+    } finally {
+      setPublishing(false)
+    }
+  }
 
 
   const removeCourse = async () => {
@@ -143,18 +199,53 @@ const editCourseHandler = async () => {
         <FaArrowLeftLong  className='top-[-20%] md:top-[20%] absolute left-[0] md:left-[2%] w-[22px] h-[22px] cursor-pointer' onClick={()=>navigate("/courses")}/>
         <h2 className="text-2xl font-semibold md:pl-[60px]">Add detail information regarding course</h2>
         <div className="space-x-2 space-y-2 ">
-          <button className="bg-black text-white px-4 py-2 rounded-md" onClick={()=>navigate(`/createlecture/${selectedCourse?._id}`)}>Go to lectures page</button>
-          
+          <button className="bg-black text-white px-4 py-2 rounded-md flex items-center gap-2" onClick={()=>navigate(`/createlecture/${selectedCourse?._id}`)}>
+            <FaBook /> Manage Lectures ({lectureCount})
+          </button>
         </div>
       </div>
 
       {/* Form Box */}
       <div className="bg-gray-50 p-6 rounded-md">
         <h3 className="text-lg font-medium mb-4">Basic Course Information</h3>
-        <div className="space-x-2 space-y-2 ">
-          {!isPublished? <button className="bg-green-100 text-green-600 px-4 py-2 rounded-md border-1" onClick={()=>setIsPublished(prev=>!prev)}>Click to Publish</button> 
-          :<button className="bg-red-100 text-red-600 px-4 py-2 rounded-md border-1" onClick={()=>setIsPublished(prev=>!prev)}>Click to UnPublish</button>
-          }
+
+        {/* Clear, unambiguous status + publish action */}
+        <div className="mb-4 p-4 rounded-md border bg-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2">
+            {isPublished ? (
+              <>
+                <FaCheckCircle className="text-green-600 text-xl" />
+                <div>
+                  <p className="font-medium text-green-700">Published</p>
+                  <p className="text-xs text-gray-500">Visible to students right now.</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <FaExclamationCircle className="text-yellow-500 text-xl" />
+                <div>
+                  <p className="font-medium text-yellow-700">Draft</p>
+                  <p className="text-xs text-gray-500">
+                    Not visible to students yet. {lectureCount === 0 && "Add at least 1 lecture to publish."}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+          <button
+            className={`px-4 py-2 rounded-md font-medium flex items-center justify-center gap-2 min-w-[160px] ${
+              isPublished
+                ? "bg-red-100 text-red-600 border border-red-200 hover:bg-red-200"
+                : "bg-green-600 text-white hover:bg-green-700"
+            }`}
+            disabled={publishing}
+            onClick={handlePublishToggle}
+          >
+            {publishing ? <ClipLoader size={20} color={isPublished ? "black" : "white"} /> : (isPublished ? "Unpublish Course" : "🚀 Publish Course")}
+          </button>
+        </div>
+
+        <div className="space-x-2 space-y-2 mb-2">
           <button className="bg-red-600 text-white px-4 py-2 rounded-md" disabled={loading} onClick={removeCourse}>{loading?<ClipLoader size={30} color='white'/> :"Remove Course"}</button>
         </div>
 
