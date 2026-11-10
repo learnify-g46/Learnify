@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FaLock, FaPlayCircle, FaTrophy, FaCheckCircle, FaFileAlt, FaFilePdf, FaFileWord, FaFilePowerpoint, FaDownload } from 'react-icons/fa';
+import { FaLock, FaPlayCircle, FaTrophy, FaCheckCircle, FaFileAlt, FaFilePdf, FaFileWord, FaFilePowerpoint, FaDownload, FaClipboardList, FaExternalLinkAlt } from 'react-icons/fa';
 import { FaArrowLeftLong } from "react-icons/fa6";
 import { toast } from 'react-toastify';
 import { useChatContext } from '../context/ChatContext';
 import axios from 'axios';
 import { serverUrl } from '../App';
+import useRefreshCourses from '../customHooks/useRefreshCourses';
 
 const getFileIcon = (name = "") => {
   const ext = name.split(".").pop()?.toLowerCase()
@@ -16,8 +17,18 @@ const getFileIcon = (name = "") => {
   return <FaFileAlt className="text-gray-500 shrink-0" />
 }
 
+// Cloudinary serves image/video files inline; the fl_attachment flag makes the browser
+// download them (with a readable name) instead of just opening them. Raw files
+// (docx/pptx) already download, so they are returned unchanged.
+const toDownloadUrl = (url, filename = "") => {
+  if (!url || !/\/(image|video)\/upload\//.test(url)) return url
+  const safe = filename.replace(/\.[^/.]+$/, "").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 80)
+  return url.replace("/upload/", `/upload/fl_attachment${safe ? ":" + safe : ""}/`)
+}
+
 function ViewLecture() {
   const { courseId } = useParams();
+  useRefreshCourses(courseId)
   const { courseData } = useSelector((state) => state.course);
   const {userData} = useSelector((state) => state.user)
   const selectedCourse = courseData?.find((course) => course._id === courseId);
@@ -39,14 +50,11 @@ function ViewLecture() {
   const firstUnlockedLecture =
     selectedCourse?.lectures?.find((lec) => !isLectureLocked(lec)) || null;
 
-  const [selectedLecture, setSelectedLecture] = useState(firstUnlockedLecture);
-
-  useEffect(() => {
-    // If course data loads after mount (e.g. on refresh), sync the default lecture
-    if (!selectedLecture && firstUnlockedLecture) {
-      setSelectedLecture(firstUnlockedLecture)
-    }
-  }, [selectedCourse])
+  // Keep only the chosen lecture's id; the lecture itself is always read from the
+  // latest course data so a refreshed video/resource list shows up immediately.
+  const [selectedLectureId, setSelectedLectureId] = useState(null);
+  const chosen = selectedCourse?.lectures?.find((lec) => lec._id === selectedLectureId);
+  const selectedLecture = (chosen && !isLectureLocked(chosen)) ? chosen : firstUnlockedLecture;
 
   // Give the global chatbot context about what the student is currently studying
   useEffect(() => {
@@ -84,14 +92,14 @@ function ViewLecture() {
       }
     }
     trackLastWatched()
-  }, [selectedLecture])
+  }, [selectedLecture?._id])
 
   const handleSelectLecture = (lecture) => {
     if (isLectureLocked(lecture)) {
       toast.error("Enroll in this course to unlock this lecture")
       return
     }
-    setSelectedLecture(lecture)
+    setSelectedLectureId(lecture._id)
   }
 
   // Mark the current lecture complete once the video finishes playing
@@ -167,6 +175,16 @@ function ViewLecture() {
           {selectedLecture?._id && completedLectures.includes(selectedLecture._id) && (
             <FaCheckCircle className="text-green-500" title="Completed" />
           )}
+          {selectedLecture?.videoUrl && hasFullAccess && (
+            <a
+              href={toDownloadUrl(selectedLecture.videoUrl, selectedLecture.lectureTitle)}
+              download
+              className="ml-auto flex items-center gap-1.5 text-xs font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+              title="Download this lecture video"
+            >
+              <FaDownload /> Download video
+            </a>
+          )}
         </div>
 
         {/* Study Materials / Resources */}
@@ -177,19 +195,30 @@ function ViewLecture() {
             </h3>
             <div className="space-y-2">
               {selectedLecture.resources.map((res) => (
-                <a
+                <div
                   key={res._id}
-                  href={res.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
+                  className="flex items-center justify-between gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <a
+                    href={res.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 min-w-0 flex-1 hover:underline"
+                    title="Open in a new tab"
+                  >
                     {getFileIcon(res.name)}
                     <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{res.name}</span>
-                  </div>
-                  <FaDownload className="text-gray-400 dark:text-gray-500 shrink-0" />
-                </a>
+                    <FaExternalLinkAlt className="text-gray-300 dark:text-gray-600 text-[10px] shrink-0" />
+                  </a>
+                  <a
+                    href={toDownloadUrl(res.url, res.name)}
+                    download={res.name}
+                    className="flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 px-2.5 py-1 rounded-md hover:bg-white dark:hover:bg-gray-700 shrink-0"
+                    title="Download"
+                  >
+                    <FaDownload /> Download
+                  </a>
+                </div>
               ))}
             </div>
           </div>
@@ -239,9 +268,18 @@ function ViewLecture() {
         {hasFullAccess && (
           <button
             onClick={() => navigate(`/takequiz/${courseId}`)}
-            className="w-full mb-6 flex items-center justify-center gap-2 bg-black dark:bg-white dark:text-black text-white py-3 rounded-lg text-sm font-medium hover:opacity-85 transition-opacity"
+            className="w-full mb-3 flex items-center justify-center gap-2 bg-black dark:bg-white dark:text-black text-white py-3 rounded-lg text-sm font-medium hover:opacity-85 transition-opacity"
           >
             <FaTrophy /> Take Quiz
+          </button>
+        )}
+
+        {hasFullAccess && (
+          <button
+            onClick={() => navigate(`/assignments/${courseId}`)}
+            className="w-full mb-6 flex items-center justify-center gap-2 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 py-3 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            <FaClipboardList /> Assignments
           </button>
         )}
 

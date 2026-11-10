@@ -11,11 +11,13 @@ import { setUserData } from '../redux/userSlice';
 import { FaLock, FaPlayCircle } from "react-icons/fa";
 import { toast } from 'react-toastify';
 import { FaStar } from "react-icons/fa6";
+import useRefreshCourses from '../customHooks/useRefreshCourses';
 
 
 function ViewCourse() {
 
       const { courseId } = useParams();
+      useRefreshCourses(courseId)
       const navigate = useNavigate()
     const {courseData} = useSelector(state=>state.course)
     const {userData} = useSelector(state=>state.user)
@@ -114,7 +116,7 @@ console.log("Average Rating:", avgRating);
     getCreator();
 
     
-  }, [selectedCourseData]);
+  }, [selectedCourseData?.creator]);
 
 
    

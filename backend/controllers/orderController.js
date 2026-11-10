@@ -2,6 +2,7 @@ import Course from "../models/courseModel.js";
 import razorpay from 'razorpay'
 import User from "../models/userModel.js";
 import dotenv from "dotenv"
+import { recordEnrollment } from "./courseController.js"
 dotenv.config()
 const razorpayInstance = new razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -50,6 +51,7 @@ export const verifyPayment = async (req, res) => {
         course.enrolledStudents.push(userId);
         await course.save();
       }
+      await recordEnrollment(userId, courseId, course.price || 0);
 
       return res.status(200).json({ message: "Payment verified and enrollment successful" });
     } else {

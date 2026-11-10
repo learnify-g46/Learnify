@@ -13,6 +13,7 @@ import { ClipLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useDispatch } from 'react-redux'
 import { setUserData } from '../redux/userSlice'
+import { getErrorMessage, isSilentGoogleError } from '../../utils/authErrors'
 function SignUp() {
     const [name,setName]= useState("")
     const [email,setEmail]= useState("")
@@ -36,20 +37,16 @@ function SignUp() {
         catch (error) {
             console.log(error)
             setLoading(false)
-            toast.error(error.response.data.message)
+            toast.error(getErrorMessage(error))
         }
         
     }
     const googleSignUp = async () => {
         try {
             const response = await signInWithPopup(auth,provider)
-            console.log(response)
-            let user = response.user
-            let name = user.displayName;
-            let email=user.email
-            
-            
-            const result = await axios.post(serverUrl + "/api/auth/googlesignup" , {name , email ,role}
+            const idToken = await response.user.getIdToken()
+            // role = the one picked above; ignored by the server when the account already exists
+            const result = await axios.post(serverUrl + "/api/auth/googlesignup" , {idToken , role}
                 , {withCredentials:true}
             )
             dispatch(setUserData(result.data))
@@ -57,9 +54,8 @@ function SignUp() {
             toast.success("SignUp Successfully")
         } catch (error) {
             console.log(error)
-            toast.error(error.response.data.message)
+            if (!isSilentGoogleError(error)) toast.error(getErrorMessage(error, "Google sign-up failed. Please try again."))
         }
-        
     }
   return (
     <div className='bg-[#dddbdb] w-[100vw] h-[100vh] flex items-center justify-center flex-col gap-3'>

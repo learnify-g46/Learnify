@@ -1,6 +1,6 @@
 import axios from 'axios'
-import React, { useState } from 'react'
-import { FaArrowLeft, FaFilePdf, FaFileWord, FaFilePowerpoint, FaFileAlt, FaTrash, FaCloudUploadAlt } from "react-icons/fa"
+import React, { useEffect, useState } from 'react'
+import { FaArrowLeft, FaVideo, FaFilePdf, FaFileWord, FaFilePowerpoint, FaFileAlt, FaTrash, FaCloudUploadAlt } from "react-icons/fa"
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useParams } from 'react-router-dom'
 import { serverUrl } from '../../App'
@@ -22,13 +22,41 @@ function EditLecture() {
     const {courseId , lectureId} = useParams()
     const {lectureData} = useSelector(state=>state.lecture)
     const dispatch = useDispatch()
-    const selectedLecture = lectureData.find(lecture => lecture._id === lectureId)
+    const [selectedLecture, setSelectedLecture] = useState(lectureData.find(lecture => lecture._id === lectureId) || null)
     const [videoUrl,setVideoUrl] = useState(null)
     const [resourceFiles,setResourceFiles] = useState([])
-    const [lectureTitle,setLectureTitle] = useState(selectedLecture.lectureTitle)
-    const [isPreviewFree,setIsPreviewFree] = useState(false)
-    const [existingResources, setExistingResources] = useState(selectedLecture.resources || [])
+    const [lectureTitle,setLectureTitle] = useState(selectedLecture?.lectureTitle || "")
+    const [isPreviewFree,setIsPreviewFree] = useState(!!selectedLecture?.isPreviewFree)
+    const [existingResources, setExistingResources] = useState(selectedLecture?.resources || [])
     const [removingId, setRemovingId] = useState(null)
+    const [removingVideo, setRemovingVideo] = useState(false)
+
+    // Opening this page directly (refresh / bookmark) leaves Redux empty - load the lecture from the server
+    useEffect(() => {
+      if (selectedLecture) return
+      const load = async () => {
+        try {
+          const result = await axios.get(serverUrl + `/api/course/getcourselecture/${courseId}`, { withCredentials: true })
+          dispatch(setLectureData(result.data.lectures))
+          const found = result.data.lectures.find(l => l._id === lectureId)
+          if (found) {
+            setSelectedLecture(found)
+            setLectureTitle(found.lectureTitle)
+            setIsPreviewFree(!!found.isPreviewFree)
+            setExistingResources(found.resources || [])
+          }
+        } catch (error) {
+          toast.error(error.response?.data?.message || "Failed to load lecture")
+        }
+      }
+      load()
+    }, [])
+
+    const syncLecture = (updated) => {
+      setSelectedLecture(updated)
+      setExistingResources(updated.resources || [])
+      dispatch(setLectureData(lectureData.map(l => l._id === updated._id ? updated : l)))
+    }
 
     const editLecture = async () => {
       setLoading(true)
@@ -40,27 +68,42 @@ function EditLecture() {
         formData.append("isPreviewFree",isPreviewFree)
 
         const result = await axios.post(serverUrl + `/api/course/editlecture/${lectureId}` , formData , {withCredentials:true})
-        dispatch(setLectureData([...lectureData,result.data]))
-        setExistingResources(result.data.resources || [])
+        syncLecture(result.data)
         setResourceFiles([])
         toast.success("Lecture Updated")
         navigate("/courses")
         setLoading(false)
       } catch (error) {
         console.log(error)
-        toast.error(error.response.data.message)
+        toast.error(error.response?.data?.message || "Failed to update lecture")
         setLoading(false)
+      }
+    }
+
+    const removeVideo = async () => {
+      if (!window.confirm("Delete this lecture's video? Students will no longer be able to watch it.")) return
+      setRemovingVideo(true)
+      try {
+        const result = await axios.post(serverUrl + `/api/course/removelecturevideo/${lectureId}`, {}, { withCredentials: true })
+        syncLecture(result.data)
+        setVideoUrl(null)
+        toast.success("Video deleted")
+      } catch (error) {
+        toast.error(error.response?.data?.message || "Failed to delete video")
+      } finally {
+        setRemovingVideo(false)
       }
     }
 
     const removeExistingResource = async (resourceId) => {
       setRemovingId(resourceId)
       try {
+        if (!window.confirm("Delete this study material permanently?")) { setRemovingId(null); return }
         const result = await axios.post(serverUrl + `/api/course/removelectureresource/${lectureId}`, { resourceId }, { withCredentials: true })
-        setExistingResources(result.data.resources || [])
+        syncLecture(result.data)
         toast.success("Resource removed")
       } catch (error) {
-        toast.error("Failed to remove resource")
+        toast.error(error.response?.data?.message || "Failed to remove resource")
       } finally {
         setRemovingId(null)
       }
@@ -76,6 +119,7 @@ function EditLecture() {
     }
 
     const removeLecture = async () => {
+      if (!window.confirm("Delete this whole lecture (video and study materials included)?")) return
       setLoading1(true)
       try {
         const result = await axios.delete(serverUrl + `/api/course/removelecture/${lectureId}` , {withCredentials:true})
@@ -115,7 +159,7 @@ function EditLecture() {
             <input
               type="text"
               className="w-full p-3 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-md text-sm focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none"
-              placeholder={selectedLecture.lectureTitle}
+              placeholder={selectedLecture?.lectureTitle}
               onChange={(e)=>setLectureTitle(e.target.value)}
               value={lectureTitle}
             />
@@ -123,17 +167,33 @@ function EditLecture() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Video {!selectedLecture.videoUrl && "*"}
+              Video {!selectedLecture?.videoUrl && "*"}
             </label>
+
+            {selectedLecture?.videoUrl && (
+              <div className="mb-3 border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-800">
+                <video src={selectedLecture.videoUrl} controls className="w-full max-h-56 rounded-md bg-black" />
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1"><FaVideo /> Current video</span>
+                  <button
+                    onClick={removeVideo}
+                    disabled={removingVideo}
+                    className="text-xs flex items-center gap-1 text-red-500 hover:text-red-700 disabled:opacity-50"
+                  >
+                    {removingVideo ? <ClipLoader size={12} /> : <FaTrash />} Delete video
+                  </button>
+                </div>
+              </div>
+            )}
+
             <input
               type="file"
-              required={!selectedLecture.videoUrl}
               accept='video/*'
               className="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:bg-gray-700 file:text-white hover:file:bg-gray-500 dark:text-gray-300"
               onChange={(e)=>setVideoUrl(e.target.files[0])}
             />
-            {selectedLecture.videoUrl && !videoUrl && (
-              <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Video already uploaded. Choose a new file only to replace it.</p>
+            {selectedLecture?.videoUrl && !videoUrl && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Choose a new file only to replace the current video.</p>
             )}
           </div>
 
@@ -192,7 +252,9 @@ function EditLecture() {
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
+              id="isFree"
               className="accent-black dark:accent-white h-4 w-4"
+              checked={isPreviewFree}
               onChange={() => setIsPreviewFree(prev=>!prev)}
             />
             <label htmlFor="isFree" className="text-sm text-gray-700 dark:text-gray-300">Is this video FREE</label>

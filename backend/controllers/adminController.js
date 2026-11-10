@@ -6,7 +6,7 @@ import Review from "../models/reviewModel.js"
 // GET all users (students + teachers)
 export const getAllUsers = async (req, res) => {
     try {
-        const users = await User.find().select("-password -resetOtp -otpExpires")
+        const users = await User.find().select("-password -resetOtp -otpExpires -otpAttempts -isOtpVerifed -tokenVersion")
         return res.status(200).json(users)
     } catch (error) {
         return res.status(500).json({ message: `Failed to fetch users ${error}` })

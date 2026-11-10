@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { ClipLoader } from 'react-spinners'
 import { serverUrl } from '../App'
 import { toast } from 'react-toastify'
+import { getErrorMessage } from '../../utils/authErrors'
 
 function ForgotPassword() {
     let navigate = useNavigate()
@@ -25,7 +26,7 @@ function ForgotPassword() {
       
     } catch (error) {
       console.log(error)
-      toast.error(error.response.data.message)
+      toast.error(getErrorMessage(error))
       setLoading(false)
     }
     
@@ -41,7 +42,7 @@ function ForgotPassword() {
       setStep(3)
     } catch (error) {
       console.log(error)
-      toast.error(error.response.data.message)
+      toast.error(getErrorMessage(error))
       setLoading(false)
     }
     
@@ -59,7 +60,7 @@ function ForgotPassword() {
       navigate("/login")
     } catch (error) {
       console.log(error)
-      toast.error(error.response.data.message)
+      toast.error(getErrorMessage(error))
       setLoading(false)
     }
     
@@ -117,13 +118,15 @@ function ForgotPassword() {
           <form  className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Please enter the 4-digit code sent to your email.
+                Please enter the 6-digit code sent to your email.
               </label>
               <input
                 type="text"
                 className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[black]"
                 placeholder="Enter Here"
-                onChange={(e)=>setOtp(e.target.value)}
+                inputMode="numeric"
+                maxLength={6}
+                onChange={(e)=>setOtp(e.target.value.replace(/\D/g,""))}
 
                 value={otp}
                 required

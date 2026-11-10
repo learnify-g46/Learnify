@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { serverUrl } from '../App'
 import { FaArrowLeftLong } from "react-icons/fa6"
-import { FaFire, FaTrophy, FaMedal, FaCertificate, FaPlayCircle } from "react-icons/fa"
+import { FaFire, FaTrophy, FaMedal, FaCertificate, FaPlayCircle, FaClipboardList, FaClock } from "react-icons/fa"
 
 function StudentDashboard() {
   const navigate = useNavigate()
@@ -15,6 +15,7 @@ function StudentDashboard() {
   const [recentAttempts, setRecentAttempts] = useState([])
   const [recommendations, setRecommendations] = useState([])
   const [gamification, setGamification] = useState(null)
+  const [pendingAssignments, setPendingAssignments] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -36,6 +37,22 @@ function StudentDashboard() {
         setRecentAttempts(attemptsRes.data)
         setRecommendations(recRes.data)
         if (gamificationRes) setGamification(gamificationRes.data)
+
+        // Assignments pending across all enrolled courses — best effort, never
+        // blocks the rest of the dashboard if it fails.
+        try {
+          const courses = summaryRes.data?.enrolledCourses || []
+          const perCourse = await Promise.all(
+            courses.map(c => axios.get(serverUrl + `/api/assignment/course/${c._id}`, { withCredentials: true })
+              .then(r => r.data.map(a => ({ ...a, courseId: c._id })))
+              .catch(() => []))
+          )
+          const flat = perCourse.flat().filter(a => a.myStatus === "not_started" || a.myStatus === "overdue")
+          flat.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+          setPendingAssignments(flat.slice(0, 5))
+        } catch (e) {
+          console.log(e)
+        }
       } catch (error) {
         console.log(error)
       } finally {
@@ -129,6 +146,29 @@ function StudentDashboard() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Pending Assignments — new, additive widget */}
+          {pendingAssignments.length > 0 && (
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-5 border border-gray-100 dark:border-gray-800 mb-8">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                <FaClipboardList /> Pending Assignments
+              </h2>
+              <div className="space-y-2">
+                {pendingAssignments.map(a => (
+                  <div key={a._id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-gray-800 dark:text-gray-100 truncate">{a.title}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1"><FaClock /> Due {new Date(a.dueDate).toLocaleDateString()}</p>
+                    </div>
+                    <button onClick={() => navigate(`/assignments/${a.courseId}`)}
+                      className={`text-xs px-3 py-1.5 rounded-lg shrink-0 ${a.myStatus === "overdue" ? "bg-red-100 text-red-700" : "bg-black text-white dark:bg-white dark:text-black"}`}>
+                      {a.myStatus === "overdue" ? "Overdue" : "Start"}
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}
