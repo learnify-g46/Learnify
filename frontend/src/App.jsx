@@ -28,12 +28,15 @@ import getAllReviews from './customHooks/getAllReviews'
 import AdminPanel from './pages/admin/AdminPanel'
 import ManageQuiz from './pages/admin/ManageQuiz'
 import TakeQuiz from './pages/TakeQuiz'
+import ManageAssignment from './pages/admin/ManageAssignment'
+import ReviewAssignmentSubmissions from './pages/admin/ReviewAssignmentSubmissions'
+import StudentAssignments from './pages/StudentAssignments'
 import Leaderboard from './pages/Leaderboard'
 import ChatBot from './components/ChatBot'
 import StudentDashboard from './pages/StudentDashboard'
 import Certificate from './pages/Certificate'
 
-export const serverUrl ="https://lms-07j9.onrender.com";
+export const serverUrl = "http://localhost:8000"
 
 function App() {
   
@@ -68,6 +71,9 @@ function App() {
         <Route path='/createlecture/:courseId' element={userData?.role === "educator"?<CreateLecture/>:<Navigate to={"/signup"}/>}/>
         <Route path='/editlecture/:courseId/:lectureId' element={userData?.role === "educator"?<EditLecture/>:<Navigate to={"/signup"}/>}/>
         <Route path='/managequiz/:courseId' element={userData?.role === "educator"?<ManageQuiz/>:<Navigate to={"/signup"}/>}/>
+        <Route path='/manageassignment/:courseId' element={userData?.role === "educator"?<ManageAssignment/>:<Navigate to={"/signup"}/>}/>
+        <Route path='/review-assignment/:assignmentId' element={userData?.role === "educator"?<ReviewAssignmentSubmissions/>:<Navigate to={"/signup"}/>}/>
+        <Route path='/assignments/:courseId' element={userData?<StudentAssignments/>:<Navigate to={"/signup"}/>}/>
         <Route path='/admin' element={userData?.role === "admin"?<AdminPanel/>:<Navigate to={"/"}/>}/>
         <Route path='/takequiz/:courseId' element={userData?<TakeQuiz/>:<Navigate to={"/signup"}/>}/>
         <Route path='/leaderboard/:quizId' element={userData?<Leaderboard/>:<Navigate to={"/signup"}/>}/>

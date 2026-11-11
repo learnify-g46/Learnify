@@ -1,9 +1,10 @@
 import uploadOnCloudinary from "../configs/cloudinary.js";
 import User from "../models/userModel.js";
+import { safeUser } from "../utils/authHelpers.js";
 
 export const getCurrentUser = async (req,res) => {
     try {
-        const user = await User.findById(req.userId).select("-password").populate("enrolledCourses")
+        const user = await User.findById(req.userId).select("-password -resetOtp -otpExpires -otpAttempts -isOtpVerifed -tokenVersion").populate("enrolledCourses")
          if(!user){
             return res.status(400).json({message:"user does not found"})
         }
@@ -29,7 +30,7 @@ export const UpdateProfile = async (req,res) => {
             return res.status(404).json({message:"User not found"})
         }
         await user.save()
-        return res.status(200).json(user)
+        return res.status(200).json(safeUser(user))
     } catch (error) {
          console.log(error);
        return res.status(500).json({message:`Update Profile Error  ${error}`})

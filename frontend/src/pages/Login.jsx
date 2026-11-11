@@ -14,6 +14,8 @@ import { toast } from 'react-toastify'
 import { ClipLoader } from 'react-spinners'
 import { useDispatch } from 'react-redux'
 import { setUserData } from '../redux/userSlice'
+import RolePicker from '../components/RolePicker'
+import { getErrorMessage, isSilentGoogleError } from '../../utils/authErrors'
 
 function Login() {
     const [email,setEmail]= useState("")
@@ -22,6 +24,8 @@ function Login() {
     let [show,setShow] = useState(false)
      const [loading,setLoading]= useState(false)
      let dispatch = useDispatch()
+     const [pendingGoogle,setPendingGoogle] = useState(null) // { idToken, email } while a new Google user picks a role
+     const [googleBusy,setGoogleBusy] = useState(false)
     const handleLogin = async () => {
         setLoading(true)
         try {
@@ -33,31 +37,47 @@ function Login() {
         } catch (error) {
             console.log(error)
             setLoading(false)
-            toast.error(error.response.data.message)
+            toast.error(getErrorMessage(error))
         }
         
     }
+     // sends the Firebase ID token; the server reads name/email from the verified token
+     const finishGoogle = async (idToken, role) => {
+        const result = await axios.post(serverUrl + "/api/auth/googlesignup" , {idToken , role}, {withCredentials:true})
+        if (result.data?.needsRole) {
+            setPendingGoogle({ idToken, email: result.data.email })
+            return
+        }
+        setPendingGoogle(null)
+        dispatch(setUserData(result.data))
+        navigate("/")
+        toast.success("Login Successfully")
+     }
      const googleLogin = async () => {
+            setGoogleBusy(true)
             try {
                 const response = await signInWithPopup(auth,provider)
-                
-                let user = response.user
-                let name = user.displayName;
-                let email=user.email
-                let role=""
-                
-                
-                const result = await axios.post(serverUrl + "/api/auth/googlesignup" , {name , email , role}
-                    , {withCredentials:true}
-                )
-                dispatch(setUserData(result.data))
-                navigate("/")
-                toast.success("Login Successfully")
+                const idToken = await response.user.getIdToken()
+                await finishGoogle(idToken)
             } catch (error) {
                 console.log(error)
-                toast.error(error.response.data.message)
+                if (!isSilentGoogleError(error)) toast.error(getErrorMessage(error, "Google sign-in failed. Please try again."))
+            } finally {
+                setGoogleBusy(false)
             }
-            
+        }
+     const pickGoogleRole = async (role) => {
+            if (!pendingGoogle) return
+            setGoogleBusy(true)
+            try {
+                await finishGoogle(pendingGoogle.idToken, role)
+            } catch (error) {
+                console.log(error)
+                setPendingGoogle(null)
+                toast.error(getErrorMessage(error, "Google sign-in failed. Please try again."))
+            } finally {
+                setGoogleBusy(false)
+            }
         }
   return (
     <div className='bg-[#dddbdb] w-[100vw] h-[100vh] flex items-center justify-center flex-col gap-3'>
@@ -90,7 +110,7 @@ function Login() {
                         <div className='w-[25%] h-[0.5px] bg-[#c4c4c4]'></div>
                     </div>
                 
-                    <div className='w-[80%] h-[40px] border-1 border-[#d3d2d2] rounded-[5px] flex items-center justify-center ' onClick={googleLogin} ><img src={google} alt="" className='w-[25px]' /><span className='text-[18px] text-gray-500'>oogle</span> </div>
+                    <div className='w-[80%] h-[40px] border-1 border-[#d3d2d2] rounded-[5px] flex items-center justify-center ' onClick={()=>{ if(!googleBusy) googleLogin() }} ><img src={google} alt="" className='w-[25px]' /><span className='text-[18px] text-gray-500'>oogle</span> </div>
                      <div className='text-[#6f6f6f]'>Don't have an account? <span className='underline underline-offset-1 text-[black] cursor-pointer' onClick={()=>navigate("/signup")}>Sign up</span></div>
     
                 </div>
@@ -98,7 +118,7 @@ function Login() {
                 <span className='text-[white] text-2xl'></span>
                 </div>
             </form>
-          
+            {pendingGoogle && <RolePicker email={pendingGoogle.email} loading={googleBusy} onPick={pickGoogleRole} onCancel={()=>setPendingGoogle(null)} />}
         </div>
       )
 }

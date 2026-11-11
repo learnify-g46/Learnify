@@ -40,6 +40,15 @@ const userSchema = new mongoose.Schema(
       type:Boolean,
       default:false
     },
+    otpAttempts:{
+      type:Number,
+      default:0
+    },
+    // bumped on logout / password reset - every JWT issued before that stops working
+    tokenVersion:{
+      type:Number,
+      default:0
+    },
 
     // ---- Gamification (additive; does not affect any existing field/logic) ----
     xp: { type: Number, default: 0 },

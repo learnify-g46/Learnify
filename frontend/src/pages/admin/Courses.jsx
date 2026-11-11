@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 
-import { FaEdit, FaQuestionCircle, FaBook } from "react-icons/fa";
+import { FaEdit, FaQuestionCircle, FaBook, FaClipboardList } from "react-icons/fa";
 
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -106,6 +106,12 @@ function Courses() {
                       >
                         <FaQuestionCircle /> Quiz
                       </button>
+                      <button
+                        className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md bg-amber-50 text-amber-700 hover:bg-amber-100"
+                        onClick={() => navigate(`/manageassignment/${course?._id}`)}
+                      >
+                        <FaClipboardList /> Assignments
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -158,6 +164,12 @@ function Courses() {
                   onClick={() => navigate(`/managequiz/${course?._id}`)}
                 >
                   <FaQuestionCircle /> Quiz
+                </button>
+                <button
+                  className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md bg-amber-50 text-amber-700 hover:bg-amber-100"
+                  onClick={() => navigate(`/manageassignment/${course?._id}`)}
+                >
+                  <FaClipboardList /> Assignments
                 </button>
               </div>
               <span className={` w-fit px-3 py-1 text-xs rounded-full  ${course?.isPublished ? "text-green-600 bg-green-100" : "text-red-600 bg-red-100"}`}>

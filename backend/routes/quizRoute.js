@@ -1,4 +1,5 @@
 import express from "express"
+import { aiGenerateLimiter } from "../middlewares/rateLimit.js"
 import isAuth from "../middlewares/isAuth.js"
 import {
   createQuiz,
@@ -17,7 +18,7 @@ import {
 const quizRouter = express.Router()
 
 // Teacher-only (ownership enforced inside controller)
-quizRouter.post("/generate-ai/:courseId", isAuth, generateQuizWithAI)
+quizRouter.post("/generate-ai/:courseId", isAuth, aiGenerateLimiter, generateQuizWithAI)
 quizRouter.post("/create/:courseId", isAuth, createQuiz)
 quizRouter.put("/edit/:quizId", isAuth, editQuiz)
 quizRouter.delete("/:quizId", isAuth, deleteQuiz)
