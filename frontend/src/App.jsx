@@ -37,7 +37,7 @@ import StudentDashboard from './pages/StudentDashboard'
 import Certificate from './pages/Certificate'
 
 // export const serverUrl = "http://localhost:8000"
-export const serverUrl = "https://lms-1-dymy.onrender.com"
+export const serverUrl = "https://lms-07j9.onrender.com"
 
 function App() {
   
