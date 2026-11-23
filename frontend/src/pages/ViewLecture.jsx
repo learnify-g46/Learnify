@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FaLock, FaPlayCircle, FaTrophy, FaCheckCircle, FaFileAlt, FaFilePdf, FaFileWord, FaFilePowerpoint, FaDownload, FaClipboardList, FaExternalLinkAlt } from 'react-icons/fa';
@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import { useChatContext } from '../context/ChatContext';
 import axios from 'axios';
 import { serverUrl } from '../App';
+import NoteSummary from '../components/NoteSummary';
 import useRefreshCourses from '../customHooks/useRefreshCourses';
 
 const getFileIcon = (name = "") => {
@@ -20,7 +21,11 @@ const getFileIcon = (name = "") => {
 // Cloudinary serves image/video files inline; the fl_attachment flag makes the browser
 // download them (with a readable name) instead of just opening them. Raw files
 // (docx/pptx) already download, so they are returned unchanged.
+// our own protected files (/api/media/...) - the browser sends the login cookie with them
+const isOurMedia = (url = "") => url.includes("/api/media/")
+
 const toDownloadUrl = (url, filename = "") => {
+  if (isOurMedia(url)) return url + (url.includes("?") ? "&" : "?") + "download=1"
   if (!url || !/\/(image|video)\/upload\//.test(url)) return url
   const safe = filename.replace(/\.[^/.]+$/, "").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 80)
   return url.replace("/upload/", `/upload/fl_attachment${safe ? ":" + safe : ""}/`)
@@ -53,6 +58,37 @@ function ViewLecture() {
   // Keep only the chosen lecture's id; the lecture itself is always read from the
   // latest course data so a refreshed video/resource list shows up immediately.
   const [selectedLectureId, setSelectedLectureId] = useState(null);
+  // playback speed (like YouTube); remembered between lectures and visits
+  const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+  const videoRef = useRef(null)
+  const [speed, setSpeed] = useState(() => {
+    try { const v = Number(localStorage.getItem("learnify_speed")); return SPEEDS.includes(v) ? v : 1 } catch { return 1 }
+  })
+  const changeSpeed = (v) => {
+    setSpeed(v)
+    if (videoRef.current) videoRef.current.playbackRate = v
+    try { localStorage.setItem("learnify_speed", String(v)) } catch {}
+  }
+  useEffect(() => {
+    const onKey = (e) => {
+      const v = videoRef.current
+      if (!v || e.ctrlKey || e.metaKey || e.altKey) return
+      const tag = (e.target?.tagName || "").toLowerCase()
+      if (["input", "textarea", "select", "button", "a"].includes(tag) || e.target?.isContentEditable) return
+      if (e.key === " ") { e.preventDefault(); v.paused ? v.play() : v.pause() }
+      else if (e.key === "ArrowRight") { e.preventDefault(); v.currentTime = Math.min(v.duration || Infinity, v.currentTime + 5) }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); v.currentTime = Math.max(0, v.currentTime - 5) }
+      else if (e.key === ">" || e.key === "<") {
+        const i = SPEEDS.indexOf(speedRef.current)
+        const next = SPEEDS[Math.min(SPEEDS.length - 1, Math.max(0, i + (e.key === ">" ? 1 : -1)))]
+        changeSpeed(next)
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
+  const speedRef = useRef(speed)
+  speedRef.current = speed
   const chosen = selectedCourse?.lectures?.find((lec) => lec._id === selectedLectureId);
   const selectedLecture = (chosen && !isLectureLocked(chosen)) ? chosen : firstUnlockedLecture;
 
@@ -156,10 +192,13 @@ function ViewLecture() {
         <div className="aspect-video bg-black rounded-xl overflow-hidden mb-4 border border-gray-300 dark:border-gray-700">
           {selectedLecture?.videoUrl ? (
             <video
+              ref={videoRef}
+              key={selectedLecture._id}
               src={selectedLecture.videoUrl}
               controls
+              onLoadedMetadata={(e) => { e.currentTarget.playbackRate = speed }}
               className="w-full h-full object-cover"
-              crossOrigin="anonymous"
+              crossOrigin={isOurMedia(selectedLecture.videoUrl) ? "use-credentials" : "anonymous"}
               onEnded={handleVideoEnded}
             />
           ) : (
@@ -168,6 +207,24 @@ function ViewLecture() {
             </div>
           )}
         </div>
+
+        {/* Speed + keyboard help */}
+        {selectedLecture?.videoUrl && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-3 text-xs">
+            <span className="text-gray-500 dark:text-gray-400 mr-1">Speed:</span>
+            {SPEEDS.map(v => (
+              <button
+                key={v}
+                type="button"
+                onClick={(e) => { changeSpeed(v); e.currentTarget.blur() }}
+                className={`px-2.5 py-1 rounded-md border font-medium ${speed === v ? "bg-black text-white border-black dark:bg-white dark:text-black dark:border-white" : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"}`}
+              >
+                {v === 1 ? "Normal" : `${v}x`}
+              </button>
+            ))}
+            <span className="text-gray-400 ml-2 hidden md:inline">Keys: Space play/pause · ← → 5s · &lt; &gt; speed</span>
+          </div>
+        )}
 
         {/* Selected Lecture Info */}
         <div className="mt-2 flex items-center gap-2">
@@ -195,8 +252,8 @@ function ViewLecture() {
             </h3>
             <div className="space-y-2">
               {selectedLecture.resources.map((res) => (
+                <div key={res._id}>
                 <div
-                  key={res._id}
                   className="flex items-center justify-between gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5"
                 >
                   <a
@@ -218,6 +275,8 @@ function ViewLecture() {
                   >
                     <FaDownload /> Download
                   </a>
+                </div>
+                <NoteSummary lectureId={selectedLecture._id} resource={res} canRegenerate={userData?.role === "educator" || userData?.role === "admin"} />
                 </div>
               ))}
             </div>

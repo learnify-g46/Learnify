@@ -15,6 +15,7 @@ import { ClipLoader } from 'react-spinners'
 import { useDispatch } from 'react-redux'
 import { setUserData } from '../redux/userSlice'
 import RolePicker from '../components/RolePicker'
+import EmailOtpStep from '../components/EmailOtpStep'
 import { getErrorMessage, isSilentGoogleError } from '../../utils/authErrors'
 
 function Login() {
@@ -26,18 +27,27 @@ function Login() {
      let dispatch = useDispatch()
      const [pendingGoogle,setPendingGoogle] = useState(null) // { idToken, email } while a new Google user picks a role
      const [googleBusy,setGoogleBusy] = useState(false)
+     const [pendingEmail,setPendingEmail] = useState(null) // right password but email not verified yet
+     const [wrongPassword,setWrongPassword] = useState(false) // show the 'forgot password' option after a failed try
     const handleLogin = async () => {
         setLoading(true)
+        setWrongPassword(false)
         try {
             const result = await axios.post(serverUrl + "/api/auth/login" , {email , password} ,{withCredentials:true})
             dispatch(setUserData(result.data))
             navigate("/")
             setLoading(false)
-            toast.success("Login Successfully")
+            toast.success("Login successful")
         } catch (error) {
             console.log(error)
             setLoading(false)
-            toast.error(getErrorMessage(error))
+            if (error.response?.data?.code === "EMAIL_NOT_VERIFIED") {
+                setPendingEmail(error.response.data.email || email)
+                toast.info("Please verify your email to continue.")
+                return
+            }
+            if (error.response?.status === 400) setWrongPassword(true)
+            toast.error("Login not successful")
         }
         
     }
@@ -51,7 +61,7 @@ function Login() {
         setPendingGoogle(null)
         dispatch(setUserData(result.data))
         navigate("/")
-        toast.success("Login Successfully")
+        toast.success("Login successful")
      }
      const googleLogin = async () => {
             setGoogleBusy(true)
@@ -61,7 +71,7 @@ function Login() {
                 await finishGoogle(idToken)
             } catch (error) {
                 console.log(error)
-                if (!isSilentGoogleError(error)) toast.error(getErrorMessage(error, "Google sign-in failed. Please try again."))
+                if (!isSilentGoogleError(error)) toast.error("Login not successful")
             } finally {
                 setGoogleBusy(false)
             }
@@ -74,11 +84,12 @@ function Login() {
             } catch (error) {
                 console.log(error)
                 setPendingGoogle(null)
-                toast.error(getErrorMessage(error, "Google sign-in failed. Please try again."))
+                toast.error("Login not successful")
             } finally {
                 setGoogleBusy(false)
             }
         }
+  if (pendingEmail) return <EmailOtpStep email={pendingEmail} onBack={()=>{ setPendingEmail(null); setPassword('') }} note='Your email is not verified yet. We sent a 6-digit code to' />
   return (
     <div className='bg-[#dddbdb] w-[100vw] h-[100vh] flex items-center justify-center flex-col gap-3'>
             <form className='w-[90%] md:w-200 h-150 bg-[white] shadow-xl rounded-2xl flex' onSubmit={(e)=>e.preventDefault()}>
@@ -102,7 +113,13 @@ function Login() {
                     </div>
                      
                     <button className='w-[80%] h-[40px] bg-black text-white cursor-pointer flex items-center justify-center rounded-[5px]' disabled={loading} onClick={handleLogin}>{loading?<ClipLoader size={30} color='white' /> : "Login"}</button>
-                    <span className='text-[13px] cursor-pointer text-[#585757]' onClick={()=>navigate("/forgotpassword")}>Forget your password?</span>
+                    {wrongPassword && (
+                        <div className='w-[85%] rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700 text-center'>
+                            Wrong email or password.{" "}
+                            <button type='button' className='font-semibold underline' onClick={()=>navigate("/forgotpassword", { state: { email } })}>Forgot your password? Reset it</button>
+                        </div>
+                    )}
+                    <span className='text-[13px] cursor-pointer text-[#585757]' onClick={()=>navigate("/forgotpassword", { state: { email } })}>Forget your password?</span>
     
                     <div className='w-[80%] flex items-center gap-2'>
                         <div className='w-[25%] h-[0.5px] bg-[#c4c4c4]'></div>

@@ -1,11 +1,11 @@
 import express from "express"
-import { createOrder, verifyPayment } from "../controllers/orderController.js";
-
+import isAuth from "../middlewares/isAuth.js"
+import { createOrder, verifyPayment, paymentsEnabled } from "../controllers/orderController.js"
 
 let paymentRouter = express.Router()
 
-paymentRouter.post("/create-order", createOrder);
-paymentRouter.post("/verify-payment", verifyPayment);
-
+// login first, then the "payments enabled" switch
+paymentRouter.post("/create-order", isAuth, paymentsEnabled, createOrder)
+paymentRouter.post("/verify-payment", isAuth, paymentsEnabled, verifyPayment)
 
 export default paymentRouter

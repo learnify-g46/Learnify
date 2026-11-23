@@ -45,6 +45,16 @@ const userSchema = new mongoose.Schema(
       default:0
     },
     // bumped on logout / password reset - every JWT issued before that stops working
+    // true once the person has proven they own the email (Google sign-in or a password-reset OTP)
+    emailVerified:{
+        type:Boolean,
+        default:false
+    },
+    // email-verification code for a new account (or a first login of an older account); HMAC, see utils/otp.js
+    signupOtp:{ type:String },
+    signupOtpExpires:{ type:Date },
+    signupOtpAttempts:{ type:Number, default:0 },
+    signupOtpSentAt:{ type:Date },
     tokenVersion:{
       type:Number,
       default:0

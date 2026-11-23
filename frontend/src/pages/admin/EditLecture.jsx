@@ -110,8 +110,11 @@ function EditLecture() {
     }
 
     const handleResourceSelect = (e) => {
-      setResourceFiles(prev => [...prev, ...Array.from(e.target.files)])
+      // copy the files BEFORE clearing the input: the setState callback runs later, when the live
+      // FileList is already empty (that is why chosen PDFs silently vanished and nothing was uploaded)
+      const picked = Array.from(e.target.files || [])
       e.target.value = ""
+      if (picked.length) setResourceFiles(prev => [...prev, ...picked])
     }
 
     const removeSelectedFile = (index) => {

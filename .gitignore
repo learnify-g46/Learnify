@@ -1,2 +1,23 @@
-﻿node_modules/
+# secrets - never commit these
 .env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# dependencies / build output
+node_modules/
+dist/
+build/
+
+# temporary uploads (files are deleted after they reach Cloudinary)
+backend/public/*
+!backend/public/.gitkeep
+
+# logs / OS / editor files
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+backend/backups/

@@ -44,6 +44,11 @@ const courseSchema = new mongoose.Schema({
      type:Boolean,
      default:false
     },
+    // set when the teacher's account was deleted but students are still enrolled: the course is hidden from
+    // the catalogue, yet its enrolled students keep their access (see services/cleanup.js)
+    archivedAt:{
+     type:Date
+    },
     reviews: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Review'

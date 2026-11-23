@@ -1,14 +1,17 @@
 import express from "express"
-import { loginLimiter, googleLimiter, sendOtpLimiter, otpCheckLimiter } from "../middlewares/rateLimit.js"
-import {googleSignup, login, logOut, resetPassword, sendOtp, signUp, verifyOtp } from "../controllers/authController.js"
+import { loginLimiter, googleLimiter, sendOtpLimiter, otpCheckLimiter, signupLimiter } from "../middlewares/rateLimit.js"
+import {googleSignup, login, logOut, resetPassword, sendOtp, signUp, verifyOtp, verifyEmail, resendEmailOtp } from "../controllers/authController.js"
 
 const authRouter = express.Router()
 
-authRouter.post("/signup",loginLimiter,signUp)
+authRouter.post("/signup",signupLimiter,signUp)
 
 authRouter.post("/login",loginLimiter,login)
-authRouter.get("/logout",logOut)
+// POST (not GET) so another website cannot log a user out with an <img> tag
+authRouter.post("/logout",logOut)
 authRouter.post("/googlesignup",googleLimiter,googleSignup)
+authRouter.post("/verify-email",otpCheckLimiter,verifyEmail)
+authRouter.post("/resend-email-otp",sendOtpLimiter,resendEmailOtp)
 authRouter.post("/sendotp",sendOtpLimiter,sendOtp)
 authRouter.post("/verifyotp",otpCheckLimiter,verifyOtp)
 authRouter.post("/resetpassword",otpCheckLimiter,resetPassword)

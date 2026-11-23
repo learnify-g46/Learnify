@@ -6,10 +6,13 @@ import mongoose from "mongoose"
 const enrollmentSchema = new mongoose.Schema({
   student: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   course: { type: mongoose.Schema.Types.ObjectId, ref: "Course", required: true },
-  amount: { type: Number, default: 0 }
+  amount: { type: Number, default: 0 },
+  // Razorpay order that paid for this enrollment - unique, so one payment can never be reused
+  paymentOrderId: { type: String }
 }, { timestamps: true })
 
 enrollmentSchema.index({ student: 1, course: 1 }, { unique: true })
+enrollmentSchema.index({ paymentOrderId: 1 }, { unique: true, sparse: true })
 
 const Enrollment = mongoose.model("Enrollment", enrollmentSchema)
 export default Enrollment

@@ -87,7 +87,18 @@ function CreateLecture() {
          <div className="space-y-2">
           {lectureData.map((lecture, index) => (
             <div key={index} className="bg-gray-100 rounded-md flex justify-between items-center p-3 text-sm font-medium text-gray-700">
-              <span>Lecture - {index + 1}: {lecture.lectureTitle}</span>
+              <div className="flex flex-col gap-1.5">
+                <span>Lecture - {index + 1}: {lecture.lectureTitle}</span>
+                <div className="flex flex-wrap gap-1.5 text-[11px] font-normal">
+                  <span className={`px-2 py-0.5 rounded-full ${lecture.videoUrl ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                    {lecture.videoUrl ? "🎬 Video uploaded" : "No video yet"}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full ${lecture.resources?.length ? "bg-blue-100 text-blue-700" : "bg-gray-200 text-gray-500"}`}>
+                    {lecture.resources?.length ? `📄 ${lecture.resources.length} note${lecture.resources.length > 1 ? "s" : ""}` : "No notes"}
+                  </span>
+                  {lecture.isPreviewFree && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">👁 Free preview</span>}
+                </div>
+              </div>
               <FaEdit className="text-gray-500 hover:text-gray-700 cursor-pointer"  onClick={()=>navigate(`/editlecture/${courseId}/${lecture._id}`)}/>
             </div>
           ))}

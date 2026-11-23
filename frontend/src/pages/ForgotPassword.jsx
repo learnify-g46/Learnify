@@ -1,6 +1,6 @@
 import axios from 'axios'
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { ClipLoader } from 'react-spinners'
 import { serverUrl } from '../App'
 import { toast } from 'react-toastify'
@@ -9,7 +9,8 @@ import { getErrorMessage } from '../../utils/authErrors'
 function ForgotPassword() {
     let navigate = useNavigate()
     const [step,setStep] = useState(1)
-    const [email,setEmail] = useState("")
+    const location = useLocation()
+    const [email,setEmail] = useState(location.state?.email || "") // carried over from the login form
     const [otp,setOtp] = useState("")
     const [loading,setLoading]= useState(false)
     const [newpassword,setNewPassword]= useState("")

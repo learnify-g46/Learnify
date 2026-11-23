@@ -16,13 +16,28 @@ const ensureCourseOwner = async (courseId, userId) => {
 }
 
 // Generate quiz questions using AI (draft - not saved yet)
+import { validateQuestionList, cleanAiQuestions, validateTitle, validateAnswers, validateSeconds } from "../utils/quizValidation.js"
+
+const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced"]
+
 export const generateQuizWithAI = async (req, res) => {
     try {
         const { courseId } = req.params
-        const { topic, numberOfQuestions = 5, difficulty = "Intermediate" } = req.body
+        const { topic, difficulty = "Intermediate" } = req.body
+        const numberOfQuestions = req.body.numberOfQuestions === undefined ? 5 : Number(req.body.numberOfQuestions)
 
         const ownership = await ensureCourseOwner(courseId, req.userId)
         if (ownership.error) return res.status(ownership.status).json({ message: ownership.error })
+
+        if (typeof topic !== "string" || topic.trim().length < 2 || topic.trim().length > 200) {
+            return res.status(400).json({ message: "Please enter a topic (2-200 characters)." })
+        }
+        if (!Number.isInteger(numberOfQuestions) || numberOfQuestions < 1 || numberOfQuestions > 20) {
+            return res.status(400).json({ message: "Number of questions must be between 1 and 20." })
+        }
+        if (!DIFFICULTIES.includes(difficulty)) {
+            return res.status(400).json({ message: "Difficulty must be Beginner, Intermediate or Advanced." })
+        }
 
         const ai = new GoogleGenAI({})
         const prompt = `You are an assistant that creates multiple choice quiz questions for an LMS platform.
@@ -43,11 +58,17 @@ Reply ONLY with valid JSON, no markdown fences, no extra text, in this exact str
 
         let raw = response.text.trim()
         raw = raw.replace(/```json|```/g, "").trim()
-        const questions = JSON.parse(raw)
-
-        return res.status(200).json({ questions })
+        let parsed
+        try { parsed = JSON.parse(raw) } catch { parsed = null }
+        // never pass the AI's answer on as-is: keep only well-formed questions whose correct answer exists
+        const cleaned = parsed === null ? { error: "not json" } : cleanAiQuestions(parsed)
+        if (cleaned.error || cleaned.questions.length === 0) {
+            return res.status(502).json({ message: "The AI could not make a usable quiz this time. Please try again." })
+        }
+        return res.status(200).json({ questions: cleaned.questions, ...(cleaned.dropped ? { dropped: cleaned.dropped } : {}) })
     } catch (error) {
-        return res.status(500).json({ message: `AI quiz generation failed ${error}` })
+        console.log("generateQuizWithAI error:", error?.message || error)
+        return res.status(500).json({ message: "AI quiz generation failed. Please try again." })
     }
 }
 
@@ -60,16 +81,17 @@ export const createQuiz = async (req, res) => {
         const ownership = await ensureCourseOwner(courseId, req.userId)
         if (ownership.error) return res.status(ownership.status).json({ message: ownership.error })
 
-        if (!questions || questions.length === 0) {
-            return res.status(400).json({ message: "At least one question is required" })
-        }
+        const cleanTitle = validateTitle(title)
+        if (!cleanTitle) return res.status(400).json({ message: "Please enter a quiz title (up to 120 characters)." })
+        const checked = validateQuestionList(questions)
+        if (checked.error) return res.status(400).json({ message: checked.error })
 
         const quiz = await Quiz.create({
-            title,
+            title: cleanTitle,
             course: courseId,
             createdBy: req.userId,
-            questions,
-            isPublished: !!isPublished
+            questions: checked.questions,
+            isPublished: isPublished === true
         })
         return res.status(201).json(quiz)
     } catch (error) {
@@ -88,9 +110,20 @@ export const editQuiz = async (req, res) => {
         if (ownership.error) return res.status(ownership.status).json({ message: ownership.error })
 
         const { title, questions, isPublished } = req.body
-        if (title !== undefined) quiz.title = title
-        if (questions !== undefined) quiz.questions = questions
-        if (isPublished !== undefined) quiz.isPublished = isPublished
+        if (title !== undefined) {
+            const cleanTitle = validateTitle(title)
+            if (!cleanTitle) return res.status(400).json({ message: "Please enter a quiz title (up to 120 characters)." })
+            quiz.title = cleanTitle
+        }
+        if (questions !== undefined) {
+            const checked = validateQuestionList(questions)
+            if (checked.error) return res.status(400).json({ message: checked.error })
+            quiz.questions = checked.questions
+        }
+        if (isPublished !== undefined) {
+            if (typeof isPublished !== "boolean") return res.status(400).json({ message: "isPublished must be true or false." })
+            quiz.isPublished = isPublished
+        }
         await quiz.save()
 
         return res.status(200).json(quiz)
@@ -157,17 +190,23 @@ export const submitQuizAttempt = async (req, res) => {
         const { answers, timeTakenSeconds } = req.body // answers: [selectedOptionIndex, ...] in question order
 
         const quiz = await Quiz.findById(quizId)
-        if (!quiz) return res.status(404).json({ message: "Quiz not found" })
+        // a draft (unpublished) quiz does not exist as far as students are concerned
+        if (!quiz || !quiz.isPublished) return res.status(404).json({ message: "Quiz not found" })
 
         const course = await Course.findById(quiz.course)
-        const isEnrolled = course.enrolledStudents?.some(id => id.toString() === req.userId.toString())
+        const isEnrolled = course?.enrolledStudents?.some(id => id.toString() === req.userId.toString())
         if (!isEnrolled) {
             return res.status(403).json({ message: "Enroll in this course to attempt its quiz" })
         }
 
+        const cleanAnswers = validateAnswers(answers, quiz.questions.length)
+        if (!cleanAnswers) return res.status(400).json({ message: "Your answers could not be read. Please reload the quiz and try again." })
+        const seconds = validateSeconds(timeTakenSeconds)
+        if (seconds === null) return res.status(400).json({ message: "The time taken is not valid." })
+
         let score = 0
         quiz.questions.forEach((q, index) => {
-            if (answers?.[index] === q.correctOptionIndex) score++
+            if (cleanAnswers[index] === q.correctOptionIndex) score++
         })
 
         const attempt = await QuizAttempt.create({
@@ -176,7 +215,7 @@ export const submitQuizAttempt = async (req, res) => {
             course: quiz.course,
             score,
             totalQuestions: quiz.questions.length,
-            timeTakenSeconds: timeTakenSeconds || 0
+            timeTakenSeconds: seconds
         })
 
         // ---- Gamification side effects (additive). Re-attempts are still
@@ -237,7 +276,8 @@ export const submitQuizAttempt = async (req, res) => {
             gamification
         })
     } catch (error) {
-        return res.status(500).json({ message: `Failed to submit quiz ${error}` })
+        console.log("submitQuizAttempt error:", error?.message || error)
+        return res.status(500).json({ message: "Failed to submit quiz. Please try again." })
     }
 }
 
@@ -247,7 +287,7 @@ export const getQuizLeaderboard = async (req, res) => {
         const { quizId } = req.params
 
         // Best attempt per student: highest score, then fastest time
-        const attempts = await QuizAttempt.find({ quiz: quizId }).populate("student", "name photoUrl")
+        const attempts = (await QuizAttempt.find({ quiz: quizId }).populate("student", "name photoUrl")).filter(a => a.student) // skip attempts of deleted students
 
         const bestByStudent = {}
         attempts.forEach(a => {
@@ -280,7 +320,7 @@ export const getQuizLeaderboard = async (req, res) => {
 // Platform-wide leaderboard (sum of best scores across all quizzes)
 export const getOverallLeaderboard = async (req, res) => {
     try {
-        const attempts = await QuizAttempt.find().populate("student", "name photoUrl")
+        const attempts = (await QuizAttempt.find().populate("student", "name photoUrl")).filter(a => a.student)
 
         const totals = {}
         attempts.forEach(a => {
