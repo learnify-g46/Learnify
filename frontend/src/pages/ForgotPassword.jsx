@@ -49,11 +49,11 @@ function ForgotPassword() {
     
    }
     const handleStep3 = async () => {
+    if(newpassword !== conPassword){
+      return toast.error("password does not match")
+    }
     setLoading(true)
     try {
-      if(newpassword !== conPassword){
-        return toast.error("password does not match")
-      }
       const result = await axios.post(`${serverUrl}/api/auth/resetpassword` , {email,password:newpassword} , {withCredentials:true})
       console.log(result)
       toast.success(result.data.message)
@@ -75,7 +75,7 @@ function ForgotPassword() {
           Forgot Your Password?
         </h2>
 
-          <form  className="space-y-4">
+          <form className="space-y-4" onSubmit={(e)=>{e.preventDefault(); handleStep1()}}>
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Enter your email address
@@ -93,7 +93,7 @@ function ForgotPassword() {
 
             <button
               type="submit"
-              className="w-full bg-[black] hover:bg-[#4b4b4b] text-white py-2 px-4 rounded-md font-medium cursor-pointer" disabled={loading} onClick={handleStep1}
+              className="w-full bg-[black] hover:bg-[#4b4b4b] text-white py-2 px-4 rounded-md font-medium cursor-pointer" disabled={loading}
             >
               {loading?<ClipLoader size={30} color='white'/>:"Send OTP"}
             </button>
@@ -116,7 +116,7 @@ function ForgotPassword() {
 
         {/* OTP Inputs */}
         
-          <form  className="space-y-4">
+          <form className="space-y-4" onSubmit={(e)=>{e.preventDefault(); handleStep2()}}>
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Please enter the 6-digit code sent to your email.
@@ -136,7 +136,7 @@ function ForgotPassword() {
 
             <button
               type="submit"
-              className="w-full bg-[black] hover:bg-[#4b4b4b] text-white py-2 px-4 rounded-md font-medium cursor-pointer" disabled={loading} onClick={handleStep2} 
+              className="w-full bg-[black] hover:bg-[#4b4b4b] text-white py-2 px-4 rounded-md font-medium cursor-pointer" disabled={loading} 
             >
               {loading?<ClipLoader size={30} color='white'/>:"Verify OTP"}
             </button>
@@ -161,14 +161,15 @@ function ForgotPassword() {
           Enter a new password below to regain access to your account.
         </p>
 
-        <form className="space-y-5" onSubmit={(e)=>e.preventDefault()}>
+        <form className="space-y-5" onSubmit={(e)=>{e.preventDefault(); handleStep3()}}>
           {/* New Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1" >
               New Password
             </label>
             <input
-              type="text"
+              type="password"
+              autoComplete="new-password"
               placeholder="Enter new password"
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[black] focus:outline-none" onChange={(e)=>setNewPassword(e.target.value)}
 
@@ -182,7 +183,8 @@ function ForgotPassword() {
               Confirm Password
             </label>
             <input
-              type="text"
+              type="password"
+              autoComplete="new-password"
               placeholder="Re-enter new password"
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[black] focus:outline-none" onChange={(e)=>setConpassword(e.target.value)}
 
@@ -193,7 +195,7 @@ function ForgotPassword() {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full bg-[black] hover:bg-[#4b4b4b] text-white py-2 rounded-md font-medium" onClick={handleStep3}
+            className="w-full bg-[black] hover:bg-[#4b4b4b] text-white py-2 rounded-md font-medium"
           >
             {loading?<ClipLoader size={30} color='white'/>:"Reset Password"}
           </button>

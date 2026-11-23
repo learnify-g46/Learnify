@@ -5,7 +5,7 @@ import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import { ToastContainer} from 'react-toastify';
 import ForgotPassword from './pages/ForgotPassword'
-import getCurrentUser from './customHooks/getCurrentUser'
+import useCurrentUser from './customHooks/getCurrentUser'
 import { useSelector } from 'react-redux'
 import Profile from './pages/Profile'
 import EditProfile from './pages/EditProfile'
@@ -17,14 +17,14 @@ import CreateCourse from './pages/admin/CreateCourse'
 import CreateLecture from './pages/admin/CreateLecture'
 import EditLecture from './pages/admin/EditLecture'
 
-import getCouseData from './customHooks/getCouseData'
+import useCourseData from './customHooks/getCouseData'
 import ViewCourse from './pages/ViewCourse'
 import ScrollToTop from './components/ScrollToTop'
-import getCreatorCourseData from './customHooks/getCreatorCourseData'
+import useCreatorCourseData from './customHooks/getCreatorCourseData'
 import EnrolledCourse from './pages/EnrolledCourse'
 import ViewLecture from './pages/ViewLecture'
 import SearchWithAi from './pages/SearchWithAi'
-import getAllReviews from './customHooks/getAllReviews'
+import useAllReviews from './customHooks/getAllReviews'
 import AdminPanel from './pages/admin/AdminPanel'
 import ManageQuiz from './pages/admin/ManageQuiz'
 import TakeQuiz from './pages/TakeQuiz'
@@ -37,16 +37,16 @@ import StudentDashboard from './pages/StudentDashboard'
 import Certificate from './pages/Certificate'
 
 // export const serverUrl = "http://localhost:8000"
-export const serverUrl = "https://lms-07j9.onrender.com"
+export const serverUrl = import.meta.env.VITE_SERVER_URL || (import.meta.env.DEV ? "http://localhost:8000" : "https://lms-07j9.onrender.com")
 
 function App() {
   
   let {userData, authChecked} = useSelector(state=>state.user)
 
-  getCurrentUser()
-  getCouseData()
-  getCreatorCourseData()
-  getAllReviews()
+  useCurrentUser()
+  useCourseData()
+  useCreatorCourseData()
+  useAllReviews()
   return (
     <>
     

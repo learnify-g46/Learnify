@@ -67,7 +67,7 @@ function ViewLecture() {
   const changeSpeed = (v) => {
     setSpeed(v)
     if (videoRef.current) videoRef.current.playbackRate = v
-    try { localStorage.setItem("learnify_speed", String(v)) } catch {}
+    try { localStorage.setItem("learnify_speed", String(v)) } catch { /* storage can be unavailable */ }
   }
   useEffect(() => {
     const onKey = (e) => {

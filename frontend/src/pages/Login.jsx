@@ -16,7 +16,7 @@ import { useDispatch } from 'react-redux'
 import { setUserData } from '../redux/userSlice'
 import RolePicker from '../components/RolePicker'
 import EmailOtpStep from '../components/EmailOtpStep'
-import { getErrorMessage, isSilentGoogleError } from '../../utils/authErrors'
+import { isSilentGoogleError } from '../../utils/authErrors'
 
 function Login() {
     const [email,setEmail]= useState("")
