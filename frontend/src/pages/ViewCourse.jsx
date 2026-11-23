@@ -198,7 +198,7 @@ const handleEnroll = async (courseId, userId) => {
 setIsEnrolled(true)
     toast.success(verifyRes.data.message);
   } catch (verifyError) {
-    toast.error("Payment verification failed.");
+    toast.error(verifyError.response?.data?.message || "Payment verification failed.");
     console.error("Verification Error:", verifyError);
   }
   },
@@ -208,7 +208,7 @@ setIsEnrolled(true)
     rzp.open()
 
   } catch (err) {
-    toast.error("Something went wrong while enrolling.");
+    toast.error(err.response?.data?.message || "Something went wrong while enrolling.");
     console.error("Enroll Error:", err);
   }
 };

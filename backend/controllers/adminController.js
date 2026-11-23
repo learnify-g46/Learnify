@@ -1,3 +1,5 @@
+import { presentCourseLectures, mediaBase } from "../utils/presentLecture.js"
+import { deleteCourseCascade, deleteUserCascade } from "../services/cleanup.js"
 import User from "../models/userModel.js"
 import Course from "../models/courseModel.js"
 import Order from "../models/orderModel.js"
@@ -22,8 +24,8 @@ export const deleteUser = async (req, res) => {
         if (user.role === "admin") {
             return res.status(400).json({ message: "Cannot delete an admin account" })
         }
-        await User.findByIdAndDelete(userId)
-        return res.status(200).json({ message: "User deleted successfully" })
+        const summary = await deleteUserCascade(user)
+        return res.status(200).json({ message: "User deleted successfully", ...summary })
     } catch (error) {
         return res.status(500).json({ message: `Failed to delete user ${error}` })
     }
@@ -35,7 +37,7 @@ export const getAllCoursesAdmin = async (req, res) => {
         const courses = await Course.find()
             .populate("creator", "name email")
             .populate("lectures")
-        return res.status(200).json(courses)
+        return res.status(200).json(courses.map(c => presentCourseLectures(c, mediaBase(req))))
     } catch (error) {
         return res.status(500).json({ message: `Failed to fetch courses ${error}` })
     }
@@ -47,7 +49,7 @@ export const deleteCourseAdmin = async (req, res) => {
         const { courseId } = req.params
         const course = await Course.findById(courseId)
         if (!course) return res.status(404).json({ message: "Course not found" })
-        await Course.findByIdAndDelete(courseId)
+        await deleteCourseCascade(courseId)
         return res.status(200).json({ message: "Course removed successfully" })
     } catch (error) {
         return res.status(500).json({ message: `Failed to delete course ${error}` })

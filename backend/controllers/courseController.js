@@ -1,4 +1,6 @@
-import uploadOnCloudinary, { deleteFromCloudinary } from "../configs/cloudinary.js"
+import uploadOnCloudinary, { deleteFromCloudinary, privateMediaOn } from "../configs/cloudinary.js"
+import { presentLecture, presentCourseLectures, mediaBase } from "../utils/presentLecture.js"
+import { deleteCourseCascade } from "../services/cleanup.js"
 import Course from "../models/courseModel.js"
 import Lecture from "../models/lectureModel.js"
 import User from "../models/userModel.js"
@@ -20,6 +22,39 @@ const ensureLectureOwner = async (lectureId, userId) => {
     return { lecture, course }
 }
 
+// ---------------------------------------------------------------------------
+// What a viewer may see of a course's lectures. Visitors and students who have not enrolled only get
+// the lecture list plus the video of lectures the teacher marked "free preview" - never the other
+// videos or study materials. The teacher, admins and enrolled students get everything.
+// ---------------------------------------------------------------------------
+const toPreviewLecture = (lecture) => {
+    const l = lecture?.toObject ? lecture.toObject() : lecture
+    const free = !!l.isPreviewFree
+    return { _id: l._id, lectureTitle: l.lectureTitle, isPreviewFree: free, ...(free ? { videoUrl: l.videoUrl } : {}) }
+}
+
+const viewerAccess = async (userId) => {
+    if (!userId) return { admin: false }
+    const user = await User.findById(userId).select("role")
+    return { admin: user?.role === "admin" }
+}
+
+const shapeCourseForViewer = (course, userId, access, base) => {
+    const obj = presentCourseLectures(course, base)
+    const isOwner = !!userId && obj.creator?.toString() === String(userId)
+    const isEnrolled = !!userId && (obj.enrolledStudents || []).some(id => id.toString() === String(userId))
+    const full = isOwner || isEnrolled || access.admin
+    if (!full) obj.lectures = (obj.lectures || []).map(toPreviewLecture)
+    // other students' ids are only for the teacher / admin
+    if (!isOwner && !access.admin) {
+        obj.enrolledCount = (obj.enrolledStudents || []).length
+        obj.enrolledStudents = []
+    }
+    return obj
+}
+
+const isShortText = (v, max) => typeof v === "string" && v.trim().length > 0 && v.length <= max
+
 // create Courses
 export const createCourse = async (req,res) => {
 
@@ -27,6 +62,9 @@ export const createCourse = async (req,res) => {
         const {title,category} = req.body
         if(!title || !category){
             return res.status(400).json({message:"title and category is required"})
+        }
+        if(!isShortText(title, 150) || !isShortText(category, 80)){
+            return res.status(400).json({message:"Please enter a valid title and category"})
         }
         const course = await Course.create({
             title,
@@ -48,8 +86,8 @@ export const getPublishedCourses = async (req,res) => {
         {
             return res.status(404).json({message:"Course not found"})
         }
-
-        return res.status(200).json(courses)
+        const access = await viewerAccess(req.userId)
+        return res.status(200).json(courses.map(c => shapeCourseForViewer(c, req.userId, access, mediaBase(req))))
         
     } catch (error) {
           return res.status(500).json({message:`Failed to get All  courses ${error}`})
@@ -76,6 +114,13 @@ export const editCourse = async (req,res) => {
     try {
         const {courseId} = req.params;
         const {title , subTitle , description , category , level , price , isPublished } = req.body;
+        if (price !== undefined && price !== "" && (!Number.isFinite(Number(price)) || Number(price) < 0 || Number(price) > 1000000)) {
+            return res.status(400).json({ message: "Please enter a valid price" })
+        }
+        if ((title !== undefined && !isShortText(title, 150)) || (subTitle !== undefined && String(subTitle).length > 300) ||
+            (description !== undefined && String(description).length > 5000) || (category !== undefined && !isShortText(category, 80))) {
+            return res.status(400).json({ message: "Some course details are too long or empty. Please check them." })
+        }
         let thumbnail
          if(req.file){
             thumbnail = await uploadOnCloudinary(req.file.path)
@@ -117,7 +162,14 @@ export const getCourseById = async (req,res) => {
         if(!course){
             return res.status(404).json({message:"Course not found"})
         }
-         return res.status(200).json(course)
+        const access = await viewerAccess(req.userId)
+        const isOwner = course.creator?.toString() === String(req.userId)
+        // a course that is not published is only visible to its teacher and admins
+        const keepsAccess = !!course.archivedAt && (course.enrolledStudents || []).some(id => id.toString() === String(req.userId))
+        if (!course.isPublished && !isOwner && !access.admin && !keepsAccess) {
+            return res.status(404).json({message:"Course not found"})
+        }
+        return res.status(200).json(shapeCourseForViewer(course, req.userId, access, mediaBase(req)))
         
     } catch (error) {
         return res.status(500).json({message:`Failed to get course ${error}`})
@@ -132,7 +184,8 @@ export const removeCourse = async (req, res) => {
       return res.status(404).json({ message: "Course not found" });
     }
 
-    await course.deleteOne();
+    // removes the lectures and their files, quizzes, assignments and submissions, progress and reviews
+    await deleteCourseCascade(course._id);
     return res.status(200).json({ message: "Course Removed Successfully" });
   } catch (error) {
     console.error(error);
@@ -149,18 +202,18 @@ export const createLecture = async (req,res) => {
         const {lectureTitle}= req.body
         const {courseId} = req.params
 
-        if(!lectureTitle || !courseId){
+        if(!isShortText(lectureTitle, 200) || !courseId){
              return res.status(400).json({message:"Lecture Title required"})
         }
-        const lecture = await Lecture.create({lectureTitle})
         const course = await Course.findById(courseId)
-        if(course){
-            course.lectures.push(lecture._id)
-            
+        if(!course){
+            return res.status(404).json({message:"Course not found"})
         }
+        const lecture = await Lecture.create({lectureTitle})
+        course.lectures.push(lecture._id)
         await course.populate("lectures")
         await course.save()
-        return res.status(201).json({lecture,course})
+        return res.status(201).json({lecture: presentLecture(lecture, mediaBase(req)), course: presentCourseLectures(course, mediaBase(req))})
         
     } catch (error) {
         return res.status(500).json({message:`Failed to Create Lecture ${error}`})
@@ -175,12 +228,25 @@ export const getCourseLecture = async (req,res) => {
         if(!course){
             return res.status(404).json({message:"Course not found"})
         }
+        const access = await viewerAccess(req.userId)
+        const isOwner = course.creator?.toString() === String(req.userId)
+        const isEnrolled = (course.enrolledStudents || []).some(id => id.toString() === String(req.userId))
+        if (!isOwner && !isEnrolled && !access.admin) {
+            return res.status(403).json({message:"Enroll in this course to access its lectures."})
+        }
         await course.populate("lectures")
-        await course.save()
-        return res.status(200).json(course)
+        return res.status(200).json(shapeCourseForViewer(course, req.userId, access, mediaBase(req)))
     } catch (error) {
         return res.status(500).json({message:`Failed to get Lectures ${error}`})
     }
+}
+
+// The file could not be stored (Cloudinary refused it). Tell the teacher instead of saying "updated".
+const uploadFailed = (res, req) => {
+    const leftovers = [...(req.files?.videoUrl || []), ...(req.files?.resources || [])]
+    leftovers.forEach(f => { try { fs.unlinkSync(f.path) } catch {} })
+    const reason = String(uploadOnCloudinary.lastError || "").slice(0, 160)
+    return res.status(502).json({ message: `The file could not be uploaded to storage${reason ? ` (${reason})` : ""}. Nothing was saved - please try again.` })
 }
 
 export const editLecture = async (req,res) => {
@@ -196,12 +262,14 @@ export const editLecture = async (req,res) => {
         }
         const lecture = ownership.lecture
         if(req.files?.videoUrl?.[0]){
-            const videoUrl = await uploadOnCloudinary(req.files.videoUrl[0].path)
+            const videoUrl = await uploadOnCloudinary(req.files.videoUrl[0].path, { priv: privateMediaOn() })
+            if (!videoUrl) return uploadFailed(res, req)
             lecture.videoUrl = videoUrl
         }
         if(req.files?.resources?.length){
             for(const file of req.files.resources){
-                const url = await uploadOnCloudinary(file.path)
+                const url = await uploadOnCloudinary(file.path, { priv: privateMediaOn() })
+                if (!url) return uploadFailed(res, req)
                 lecture.resources.push({ name: file.originalname, url })
             }
         }
@@ -212,7 +280,7 @@ export const editLecture = async (req,res) => {
         if (isPreviewFree !== undefined) lecture.isPreviewFree = (isPreviewFree === true || isPreviewFree === "true")
         
          await lecture.save()
-        return res.status(200).json(lecture)
+        return res.status(200).json(presentLecture(lecture, mediaBase(req)))
     } catch (error) {
         return res.status(500).json({message:`Failed to edit Lectures ${error}`})
     }
@@ -248,7 +316,7 @@ export const removeLectureResource = async (req,res) => {
         lecture.resources = lecture.resources.filter(r => r._id.toString() !== resourceId)
         await lecture.save()
         await deleteFromCloudinary(target.url)
-        return res.status(200).json(lecture)
+        return res.status(200).json(presentLecture(lecture, mediaBase(req)))
     } catch (error) {
         return res.status(500).json({message:`Failed to remove resource ${error}`})
     }
@@ -269,7 +337,7 @@ export const removeLectureVideo = async (req,res) => {
         lecture.videoUrl = undefined
         await lecture.save()
         await deleteFromCloudinary(oldUrl)
-        return res.status(200).json(lecture)
+        return res.status(200).json(presentLecture(lecture, mediaBase(req)))
     } catch (error) {
         return res.status(500).json({message:`Failed to remove video ${error}`})
     }
@@ -313,11 +381,14 @@ export const enrollFreeCourse = async (req, res) => {
 
         // Guard: this endpoint is only for free courses. Paid courses must go
         // through the payment flow (/api/payment/create-order + verify-payment)
+        if (!course.isPublished) {
+            return res.status(404).json({ message: "Course not found" })
+        }
         if (course.price && course.price > 0) {
             return res.status(400).json({ message: "This course is paid. Please complete payment to enroll." })
         }
 
-        const user = await User.findById(userId)
+        const user = await User.findById(userId).select("_id")
         if (!user) {
             return res.status(404).json({ message: "User not found" })
         }
@@ -329,7 +400,7 @@ export const enrollFreeCourse = async (req, res) => {
         await Course.findByIdAndUpdate(courseId, { $addToSet: { enrolledStudents: userId } })
         await recordEnrollment(userId, courseId, 0)
 
-        return res.status(200).json({ message: "Enrolled successfully", course, user })
+        return res.status(200).json({ message: "Enrolled successfully", course: shapeCourseForViewer(course, userId, { admin: false }, mediaBase(req)) })
     } catch (error) {
         return res.status(500).json({ message: `Failed to enroll in course ${error}` })
     }
@@ -343,8 +414,12 @@ export const enrollFreeCourse = async (req, res) => {
 export const getCreatorById = async (req, res) => {
   try {
     const {userId} = req.body;
+    if (typeof userId !== "string" || !/^[0-9a-fA-F]{24}$/.test(userId)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
 
-    const user = await User.findById(userId).select("-password -resetOtp -otpExpires -otpAttempts -isOtpVerifed -tokenVersion");
+    // only what is shown on a course page (teacher name, photo, bio) - never email or account data
+    const user = await User.findById(userId).select("name description photoUrl role");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -353,7 +428,7 @@ export const getCreatorById = async (req, res) => {
     res.status(200).json( user );
   } catch (error) {
     console.error("Error fetching user by ID:", error);
-    res.status(500).json({ message: "get Creator error" });
+    res.status(500).json({ message: "Could not load the teacher's details." });
   }
 };
 

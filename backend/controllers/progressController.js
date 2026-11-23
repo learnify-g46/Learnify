@@ -4,11 +4,31 @@ import QuizAttempt from "../models/quizAttemptModel.js"
 import User from "../models/userModel.js"
 import { XP_RULES, awardXp, applyStreakActivity, markDailyQuestTask, checkAndAwardBadges, BADGE_META } from "../utils/gamification.js"
 
+import { validId } from "../middlewares/permissions.js"
+
+// Progress, XP and streaks only count for a student who is enrolled in the course, and only for a
+// lecture that really belongs to that course (so fake ids cannot be used to farm XP).
+const checkEnrolledLecture = async (userId, courseId, lectureId) => {
+    if (!validId(courseId) || !validId(lectureId)) return { status: 400, message: "Invalid course or lecture." }
+    const course = await Course.findById(courseId).select("lectures enrolledStudents")
+    if (!course) return { status: 404, message: "Course not found" }
+    if (!course.enrolledStudents.some(id => id.toString() === String(userId))) {
+        return { status: 403, message: "Enroll in this course to track your progress." }
+    }
+    if (!course.lectures.some(id => id.toString() === String(lectureId))) {
+        return { status: 400, message: "This lecture is not part of the course." }
+    }
+    return { course }
+}
+
 // Mark a lecture as completed + update "last watched" pointer
 export const markLectureComplete = async (req, res) => {
     try {
         const { courseId, lectureId } = req.body
         const studentId = req.userId
+
+        const check = await checkEnrolledLecture(studentId, courseId, lectureId)
+        if (check.message) return res.status(check.status).json({ message: check.message })
 
         let progress = await Progress.findOne({ student: studentId, course: courseId })
         let isNewCompletion = false
@@ -80,6 +100,9 @@ export const updateLastWatched = async (req, res) => {
         const { courseId, lectureId } = req.body
         const studentId = req.userId
 
+        const check = await checkEnrolledLecture(studentId, courseId, lectureId)
+        if (check.message) return res.status(check.status).json({ message: check.message })
+
         let progress = await Progress.findOne({ student: studentId, course: courseId })
         if (!progress) {
             progress = await Progress.create({ student: studentId, course: courseId, lastWatchedLecture: lectureId, completedLectures: [] })
@@ -97,6 +120,7 @@ export const updateLastWatched = async (req, res) => {
 export const getCourseProgress = async (req, res) => {
     try {
         const { courseId } = req.params
+        if (!validId(courseId)) return res.status(200).json({ completedLectures: [], lastWatchedLecture: null })
         const progress = await Progress.findOne({ student: req.userId, course: courseId })
         return res.status(200).json(progress || { completedLectures: [], lastWatchedLecture: null })
     } catch (error) {

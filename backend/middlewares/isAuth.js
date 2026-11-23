@@ -6,7 +6,7 @@ const isAuth = async (req, res, next) => {
         let { token } = req.cookies
 
         if (!token) {
-            return res.status(400).json({ message: "user doesn't have token" })
+            return res.status(401).json({ message: "Please log in to continue." })
         }
 
         let payload

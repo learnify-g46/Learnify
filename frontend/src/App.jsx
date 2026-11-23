@@ -37,11 +37,11 @@ import StudentDashboard from './pages/StudentDashboard'
 import Certificate from './pages/Certificate'
 
 // export const serverUrl = "http://localhost:8000"
-export const serverUrl = "https://lms-07j9.onrender.com"
+export const serverUrl = "https://lms-1-dymy.onrender.com"
 
 function App() {
   
-  let {userData} = useSelector(state=>state.user)
+  let {userData, authChecked} = useSelector(state=>state.user)
 
   getCurrentUser()
   getCouseData()
@@ -52,6 +52,10 @@ function App() {
     
       <ToastContainer />
       <ScrollToTop/>
+      {/* wait until we know if the visitor is logged in, otherwise a page reload on a protected page bounces to /signup */}
+      {!authChecked ? (
+        <div className="w-screen h-screen flex items-center justify-center text-gray-500">Loading...</div>
+      ) : (
       <Routes>
         <Route path='/' element={<Home/>}/>
         <Route path='/login' element={<Login/>}/>
@@ -83,6 +87,7 @@ function App() {
         <Route path='/certificate/:courseId' element={userData?<Certificate/>:<Navigate to={"/signup"}/>}/>
         <Route path='/forgotpassword' element={<ForgotPassword/>}/>
          </Routes>
+      )}
          <ChatBot/>
          </>
    

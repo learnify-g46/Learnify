@@ -10,7 +10,10 @@ const lectureSchema = new mongoose.Schema({
     },
     resources:[{
         name:{ type:String },
-        url:{ type:String }
+        url:{ type:String },
+        // AI summary of this note (JSON text), made once and reused for every student
+        summary:{ type:String },
+        summaryAt:{ type:Date }
     }],
     isPreviewFree:{
         type:Boolean

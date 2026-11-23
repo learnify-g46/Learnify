@@ -2,7 +2,10 @@ import { GoogleGenAI } from "@google/genai"
 import Assignment from "../models/assignmentModel.js"
 import AssignmentSubmission from "../models/assignmentSubmissionModel.js"
 import Course from "../models/courseModel.js"
-import uploadOnCloudinary from "../configs/cloudinary.js"
+import uploadOnCloudinary, { privateAssignmentFilesOn } from "../configs/cloudinary.js"
+import { teacherSubmissionView, studentSubmissionView } from "../utils/presentSubmission.js"
+import { mediaBase } from "../utils/presentLecture.js"
+import { validId } from "../middlewares/permissions.js"
 import { hashFile, extractTextFromFile } from "../utils/ocr.js"
 import { textSimilarityPercent, SIMILARITY_DUPLICATE_THRESHOLD } from "../utils/duplicateDetection.js"
 import fs from "fs"
@@ -276,7 +279,7 @@ export const getAssignmentForStudent = async (req, res) => {
 
         const existingSubmission = await AssignmentSubmission.findOne({ assignment: assignmentId, student: req.userId })
 
-        return res.status(200).json({ assignment: obj, submission: existingSubmission })
+        return res.status(200).json({ assignment: obj, submission: studentSubmissionView(existingSubmission, assignment, mediaBase(req)) })
     } catch (error) {
         return res.status(500).json({ message: `Failed to fetch assignment ${error}` })
     }
@@ -327,7 +330,7 @@ export const submitMcqAssignment = async (req, res) => {
             { upsert: true, new: true }
         )
 
-        return res.status(200).json({ message: "Assignment submitted successfully", submission })
+        return res.status(200).json({ message: "Assignment submitted successfully", submission: studentSubmissionView(submission, assignment, mediaBase(req)) })
     } catch (error) {
         return res.status(500).json({ message: `Failed to submit assignment ${error}` })
     }
@@ -376,7 +379,7 @@ export const submitTypedAssignment = async (req, res) => {
         }
 
         const refreshed = await AssignmentSubmission.findById(submission._id)
-        return res.status(200).json({ message: "Assignment submitted successfully", submission: refreshed })
+        return res.status(200).json({ message: "Assignment submitted successfully", submission: studentSubmissionView(refreshed, assignment, mediaBase(req)) })
     } catch (error) {
         return res.status(500).json({ message: `Failed to submit assignment ${error}` })
     }
@@ -452,7 +455,8 @@ export const submitPdfAssignment = async (req, res) => {
 
         const sha256Hash = hashFile(req.file.path)
         const { text: ocrText, ocrMethod } = await extractTextFromFile(req.file.path, req.file.mimetype)
-        const fileUrl = await uploadOnCloudinary(req.file.path) // also deletes the local temp file
+        const fileUrl = await uploadOnCloudinary(req.file.path, { priv: privateAssignmentFilesOn() }) // also deletes the local temp file
+        if (!fileUrl) return res.status(502).json({ message: "Your file could not be stored right now. Nothing was submitted - please try again." })
 
         // ---- Duplicate detection (advisory only, never blocks the submission) ----
         let duplicateStatus = "none"
@@ -510,7 +514,7 @@ export const submitPdfAssignment = async (req, res) => {
         }
 
         const refreshed = await AssignmentSubmission.findById(submission._id)
-        return res.status(200).json({ message: "Assignment submitted successfully", submission: refreshed })
+        return res.status(200).json({ message: "Assignment submitted successfully", submission: studentSubmissionView(refreshed, assignment, mediaBase(req)) })
     } catch (error) {
         return res.status(500).json({ message: `Failed to submit assignment ${error}` })
     }
@@ -562,48 +566,90 @@ export const getSubmissionsForAssignment = async (req, res) => {
             .populate("duplicateOfSubmission", "student submittedAt")
             .sort({ submittedAt: -1 })
 
-        return res.status(200).json(submissions)
+        return res.status(200).json(submissions.filter(s => s.student).map(s => teacherSubmissionView(s, mediaBase(req)))) // skip work of deleted students
     } catch (error) {
         return res.status(500).json({ message: `Failed to fetch submissions ${error}` })
     }
 }
 
+// a mark: a real number from 0 up to max (numeric text such as "7.5" is fine); anything else -> null
+const parseMark = (value, max) => {
+    const n = typeof value === "string" && value.trim() !== "" ? Number(value) : value
+    if (typeof n !== "number" || !Number.isFinite(n) || n < 0 || n > max) return null
+    return Math.round(n * 100) / 100
+}
+
 export const reviewSubmission = async (req, res) => {
     try {
         const { submissionId } = req.params
-        const { finalMarks, teacherFeedback, typedAnswerReviews } = req.body
+        const { finalMarks, teacherFeedback, typedAnswerReviews } = req.body || {}
         // typedAnswerReviews: [{ questionId, teacherMarks, teacherFeedback }]
 
+        if (!validId(submissionId)) return res.status(400).json({ message: "Invalid submission." })
         const submission = await AssignmentSubmission.findById(submissionId)
         if (!submission) return res.status(404).json({ message: "Submission not found" })
 
         const assignment = await Assignment.findById(submission.assignment)
+        if (!assignment) return res.status(404).json({ message: "Assignment not found" })
         const ownership = await ensureCourseOwner(assignment.course, req.userId)
         if (ownership.error) return res.status(ownership.status).json({ message: ownership.error })
 
-        if (Array.isArray(typedAnswerReviews)) {
-            typedAnswerReviews.forEach(review => {
-                const ans = submission.typedAnswers.find(a => a.questionId.toString() === review.questionId)
-                if (ans) {
-                    ans.teacherMarks = review.teacherMarks
-                    ans.teacherFeedback = review.teacherFeedback || ""
+        // ---- check everything first; nothing is changed unless all of it is valid ----
+        const maxMarks = assignment.maxMarks
+        let newFinal
+        if (finalMarks !== undefined) {
+            newFinal = parseMark(finalMarks, maxMarks)
+            if (newFinal === null) return res.status(400).json({ message: `Final marks must be a number from 0 to ${maxMarks}.` })
+        }
+        let newFeedback
+        if (teacherFeedback !== undefined) {
+            if (typeof teacherFeedback !== "string" || teacherFeedback.length > 5000) {
+                return res.status(400).json({ message: "Feedback must be text of up to 5000 characters." })
+            }
+            newFeedback = teacherFeedback.trim()
+        }
+        const answerUpdates = []
+        if (typedAnswerReviews !== undefined) {
+            if (!Array.isArray(typedAnswerReviews) || typedAnswerReviews.length > 200) {
+                return res.status(400).json({ message: "The question reviews could not be read." })
+            }
+            for (const review of typedAnswerReviews) {
+                if (!review || typeof review !== "object" || typeof review.questionId !== "string") {
+                    return res.status(400).json({ message: "The question reviews could not be read." })
                 }
-            })
+                const ans = submission.typedAnswers.find(a => a.questionId.toString() === review.questionId)
+                if (!ans) return res.status(400).json({ message: "A reviewed question does not belong to this submission." })
+                const question = (assignment.typedQuestions || []).find(q => q._id.toString() === review.questionId)
+                const qMax = question?.maxMarks ?? maxMarks
+                const marks = parseMark(review.teacherMarks, qMax)
+                if (marks === null) return res.status(400).json({ message: `Marks for a question must be a number from 0 to ${qMax}.` })
+                let fb = ""
+                if (review.teacherFeedback !== undefined && review.teacherFeedback !== null) {
+                    if (typeof review.teacherFeedback !== "string" || review.teacherFeedback.length > 2000) {
+                        return res.status(400).json({ message: "Feedback for a question must be text of up to 2000 characters." })
+                    }
+                    fb = review.teacherFeedback.trim()
+                }
+                answerUpdates.push({ ans, marks, fb })
+            }
         }
 
-        if (finalMarks !== undefined) submission.finalMarks = finalMarks
-        else if (submission.type === "typed" && Array.isArray(typedAnswerReviews)) {
-            submission.finalMarks = submission.typedAnswers.reduce((s, a) => s + (a.teacherMarks ?? a.aiSuggestedMarks ?? 0), 0)
+        for (const u of answerUpdates) { u.ans.teacherMarks = u.marks; u.ans.teacherFeedback = u.fb }
+        if (newFinal !== undefined) submission.finalMarks = newFinal
+        else if (submission.type === "typed" && answerUpdates.length) {
+            const total = submission.typedAnswers.reduce((s, a) => s + (a.teacherMarks ?? a.aiSuggestedMarks ?? 0), 0)
+            submission.finalMarks = Math.min(maxMarks, Math.round(total * 100) / 100)
         }
-        if (teacherFeedback !== undefined) submission.teacherFeedback = teacherFeedback
+        if (newFeedback !== undefined) submission.teacherFeedback = newFeedback
 
         submission.status = "evaluated"
         submission.evaluatedAt = new Date()
         await submission.save()
 
-        return res.status(200).json({ message: "Submission reviewed successfully", submission })
+        return res.status(200).json({ message: "Submission reviewed successfully", submission: teacherSubmissionView(submission, mediaBase(req)) })
     } catch (error) {
-        return res.status(500).json({ message: `Failed to review submission ${error}` })
+        console.log("reviewSubmission error:", error?.message || error)
+        return res.status(500).json({ message: "The review could not be saved. Please try again." })
     }
 }
 

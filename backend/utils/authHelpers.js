@@ -29,6 +29,10 @@ export const safeUser = (user) => {
     delete obj.otpExpires
     delete obj.isOtpVerifed
     delete obj.otpAttempts
+    delete obj.signupOtp
+    delete obj.signupOtpExpires
+    delete obj.signupOtpAttempts
+    delete obj.signupOtpSentAt
     delete obj.tokenVersion
     delete obj.__v
     obj.hasPassword = Boolean(user.password)
@@ -37,3 +41,8 @@ export const safeUser = (user) => {
 
 // roles anyone may pick for themselves; "admin" can never be self-assigned
 export const SELF_ROLES = ["student", "educator"]
+
+// New accounts must prove their email with a code. Always on in production; on a developer's computer it can
+// be switched off with REQUIRE_EMAIL_VERIFICATION=false (e.g. when no mail account is set up yet).
+export const verificationRequired = () =>
+    process.env.NODE_ENV === "production" || process.env.REQUIRE_EMAIL_VERIFICATION !== "false"

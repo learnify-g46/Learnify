@@ -12,6 +12,7 @@ const getCreatorCourseData = () => {
     useEffect(()=>{
     const getCreatorData = async () => {
       try {
+        if (!userData) return // not logged in: nothing to load, and nothing to show
         const result = await axios.get(serverUrl + "/api/course/getcreatorcourses" , {withCredentials:true})
         
          await dispatch(setCreatorCourseData(result.data))
@@ -20,8 +21,8 @@ const getCreatorCourseData = () => {
         console.log(result.data)
         
       } catch (error) {
+        // background load: never pop a message at the user (logged-out visitors and students hit this too)
         console.log(error)
-        toast.error(error.response.data.message)
       }
       
     }

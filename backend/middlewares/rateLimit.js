@@ -31,6 +31,12 @@ export const globalLimiter = make({
   message: "Too many requests. Please slow down and try again in a minute."
 })
 
+// protected lecture files: a video player asks for many small pieces while seeking, so this is roomier
+export const mediaLimiter = make({
+  windowMs: MIN, limit: 600, key: ip,
+  message: "Too many requests. Please slow down and try again in a minute."
+})
+
 // login / signup: only FAILED attempts count, so normal users are never blocked
 export const loginLimiter = make({
   windowMs: 15 * MIN, limit: 10, skipSuccessfulRequests: true,
@@ -49,6 +55,13 @@ export const sendOtpLimiter = make({
   windowMs: 10 * MIN, limit: 3,
   key: (req) => `${emailOf(req) || ip(req)}`,
   message: "Too many OTP requests. Please try again in 10 minutes."
+})
+
+// sign-up sends a verification email, so it is limited per address (and per visitor) to stop inbox spam
+export const signupLimiter = make({
+  windowMs: 10 * MIN, limit: 5,
+  key: (req) => `${ip(req)}|${emailOf(req)}`,
+  message: "Too many sign-up attempts. Please try again in 10 minutes."
 })
 
 // verify OTP / reset password
@@ -84,4 +97,10 @@ export const submitLimiter = make({
 export const aiGenerateLimiter = make({
   windowMs: 10 * MIN, limit: 15, key: userOrIp,
   message: "Too many AI requests. Please wait a few minutes and try again."
+})
+
+// AI note summaries per logged-in user (a repeat of an already-summarized note costs nothing)
+export const summarizeLimiter = make({
+  windowMs: 10 * MIN, limit: 20, key: userOrIp,
+  message: "Too many summary requests. Please wait a few minutes and try again."
 })

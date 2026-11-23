@@ -10,7 +10,7 @@ export const hashFile = (filePath) => {
 let pdfParseFn = null
 const getPdfParse = async () => {
     if (!pdfParseFn) {
-        const mod = await import("pdf-parse")
+        const mod = await import("pdf-parse/lib/pdf-parse.js")
         pdfParseFn = mod.default
     }
     return pdfParseFn

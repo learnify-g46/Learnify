@@ -1,6 +1,7 @@
 import express from "express"
 import isAuth from "../middlewares/isAuth.js"
-import upload from "../middlewares/multer.js"
+import { uploadSubmission, verifyUploads, cleanupUploads } from "../middlewares/multer.js"
+import { requireEnrolledForAssignment } from "../middlewares/permissions.js"
 import { aiGenerateLimiter, submitLimiter, uploadLimiter } from "../middlewares/rateLimit.js"
 import {
     generateAssignmentWithAI,
@@ -39,6 +40,6 @@ assignmentRouter.get("/course/:courseId", isAuth, getAssignmentsForStudent)
 assignmentRouter.get("/:assignmentId", isAuth, getAssignmentForStudent)
 assignmentRouter.post("/submit/mcq/:assignmentId", isAuth, submitLimiter, submitMcqAssignment)
 assignmentRouter.post("/submit/typed/:assignmentId", isAuth, submitLimiter, submitTypedAssignment)
-assignmentRouter.post("/submit/pdf/:assignmentId", isAuth, submitLimiter, uploadLimiter, upload.single("file"), submitPdfAssignment)
+assignmentRouter.post("/submit/pdf/:assignmentId", isAuth, requireEnrolledForAssignment, submitLimiter, uploadLimiter, cleanupUploads, uploadSubmission.single("file"), verifyUploads, submitPdfAssignment)
 
 export default assignmentRouter
