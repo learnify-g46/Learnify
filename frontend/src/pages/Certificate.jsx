@@ -5,7 +5,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { serverUrl } from '../App'
 import { FaArrowLeftLong } from "react-icons/fa6"
 import { FaCertificate, FaDownload } from "react-icons/fa"
-import { toast } from 'react-toastify'
 
 function Certificate() {
   const { courseId } = useParams()
@@ -23,7 +22,7 @@ function Certificate() {
         const completed = result.data?.completedLectures?.length || 0
         const total = course?.lectures?.length || 0
         setEligible(total > 0 && completed === total)
-      } catch (error) {
+      } catch {
         setEligible(false)
       }
     }

@@ -3,9 +3,8 @@ import { serverUrl } from '../App'
 import axios from 'axios'
 import { setCreatorCourseData } from '../redux/courseSlice'
 import { useDispatch, useSelector } from 'react-redux'
-import { toast } from 'react-toastify'
 
-const getCreatorCourseData = () => {
+const useCreatorCourseData = () => {
     const dispatch = useDispatch()
     const {userData} = useSelector(state=>state.user)
   return (
@@ -31,4 +30,4 @@ const getCreatorCourseData = () => {
   )
 }
 
-export default getCreatorCourseData
+export default useCreatorCourseData

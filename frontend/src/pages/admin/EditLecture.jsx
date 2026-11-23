@@ -125,7 +125,7 @@ function EditLecture() {
       if (!window.confirm("Delete this whole lecture (video and study materials included)?")) return
       setLoading1(true)
       try {
-        const result = await axios.delete(serverUrl + `/api/course/removelecture/${lectureId}` , {withCredentials:true})
+        await axios.delete(serverUrl + `/api/course/removelecture/${lectureId}` , {withCredentials:true})
         toast.success("Lecture Removed")
        navigate(`/createlecture/${courseId}`)
         setLoading1(false)

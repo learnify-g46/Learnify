@@ -23,7 +23,7 @@ export const getErrorMessage = (error, fallback = "Something went wrong. Please 
     if (error?.code && FIREBASE_MESSAGES[error.code]) return FIREBASE_MESSAGES[error.code]
     if (error?.code?.startsWith?.("auth/")) return `Google sign-in failed (${error.code}). Please try again.`
     if (error?.request || error?.message === "Network Error") return "We couldn't reach the server. Please check that the backend is running and try again."
-  } catch (e) { /* fall through */ }
+  } catch { /* fall through */ }
   return fallback
 }
 

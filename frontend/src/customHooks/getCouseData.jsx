@@ -1,13 +1,12 @@
 import axios from 'axios';
 import { serverUrl } from '../App.jsx';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { setCourseData } from '../redux/courseSlice.js';
 import { useEffect } from 'react';
 import React from 'react'
 
-const getCouseData = () => {
+const useCourseData = () => {
   const dispatch = useDispatch()
-  const {userData} = useSelector((state)=>state.user)
 
   useEffect(()=>{
     const getAllPublishedCourse = async () => {
@@ -25,6 +24,6 @@ const getCouseData = () => {
 
 }
 
-export default getCouseData
+export default useCourseData
 
 
